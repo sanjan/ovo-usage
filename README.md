@@ -1,6 +1,6 @@
 # ☀️ OVO Energy Solar Dashboard
 
-A web dashboard for analyzing electricity usage data exported from [OVO Energy Australia](https://www.ovoenergy.com.au/). Visualize your consumption during sunlight vs night hours and get personalized home battery capacity recommendations with ROI analysis.
+A web dashboard for analyzing electricity data exported from [OVO Energy Australia](https://www.ovoenergy.com.au/). Visualize your grid import during daytime vs night hours, simulate battery scenarios, and get personalized battery recommendations with ROI analysis.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
@@ -8,8 +8,8 @@ A web dashboard for analyzing electricity usage data exported from [OVO Energy A
 ## Features
 
 - 📊 **Interactive Charts** - Powered by Plotly.js with zoom, pan, and hover details
-- ☀️ **Smart Sunlight Detection** - Uses actual solar generation data (not astronomical sunrise/sunset)
-- 🔋 **Battery Recommendations** - Coverage-based sizing for summer and winter
+- ☀️ **Smart Daytime Detection** - Uses actual solar generation data (not astronomical sunrise/sunset)
+- 🔋 **Battery Simulation** - "What If?" chart showing grid import reduction with different battery sizes
 - 💰 **ROI Analysis** - Calculate payback period with your actual OVO rates
 - 🆓 **Free Power Window** - Configure your free electricity period (e.g., 11am-2pm)
 - 📅 **Date Range Selection** - Analyze specific periods (auto-suggests 1-year range)
@@ -42,29 +42,19 @@ Then open http://127.0.0.1:5000 in your browser.
 3. Select your date range and download the CSV file
 4. The file will be named like `OVOEnergy-Elec-XXXXXXXX-UsageData-DD-MM-YYYY-XXXXXXXX.csv`
 
-> ⚠️ **Recommended: At least 12 months of solar data** for accurate battery recommendations. This ensures seasonal variations (summer vs winter solar generation and consumption) are captured for reliable sizing guidance.
+> ⚠️ **Recommended: At least 12 months of solar data** for accurate battery recommendations. This ensures seasonal variations (summer vs winter solar generation and consumption) are captured.
 
-## OVO Energy CSV Format
+## Key Terms
 
-This dashboard **only works with OVO Energy Australia export files**. The expected format:
-
-| Column | Description | Example |
-|--------|-------------|---------|
-| `AccountNumber` | Your OVO account number | `30128980` |
-| `NMI` | National Metering Identifier | `63060932424` |
-| `Register` | `001` = grid consumption, `002` = solar export | `001` |
-| `ReadConsumption` | Energy in kWh | `0.123` |
-| `SolarFlag` | `true` for solar export readings | `false` |
-| `ReadUnit` | Unit of measurement | `kWh` |
-| `ReadQuality` | Data quality indicator | `A` |
-| `ReadDate` | Date (YYYY-MM-DD) | `2024-05-07` |
-| `ReadTime` | Time (HH:MM:SS) | `00:05:00` |
-
-Data is recorded in **5-minute intervals**.
+| Term | Meaning |
+|------|---------|
+| **Daytime Grid Import** | Electricity bought from grid while solar is generating |
+| **Night Grid Import** | Electricity bought from grid when solar isn't generating |
+| **Solar Export** | Electricity sent back to the grid |
 
 ## Battery Recommendations
 
-The dashboard uses **percentile-based** recommendations based on your actual usage:
+The dashboard uses **pragmatic percentile-based** recommendations with **8 kWh module increments** (Sigenergy standard):
 
 | Recommendation | Criteria |
 |----------------|----------|
@@ -72,29 +62,39 @@ The dashboard uses **percentile-based** recommendations based on your actual usa
 | **Best Value** ⭐ | Covers 99th percentile of summer nights |
 | **Winter Ready** | Covers 90th percentile of winter nights |
 
-This approach:
-- Uses your actual night usage data (not arbitrary targets)
-- Accounts for 90% round-trip battery efficiency
-- Focuses on summer where solar works best
-- Is honest about winter - you'll still need grid power
+Key assumptions:
+- **97% usable capacity** (Sigenergy SigenStor actual)
+- **$540/kWh** default battery cost (Sigenergy pricing)
+- **Australian seasons**: Summer = Dec-Feb, Winter = Jun-Aug
+
+## Battery Simulation
+
+The "🔋 Battery Simulation - What If?" chart shows:
+- Original vs simulated night grid import (with battery)
+- Original vs simulated solar export (after charging battery)
+- Battery state of charge over time (with daily carryover!)
+- Stats: grid reduction %, self-consumed kWh, average battery level
+
+Select different battery sizes (8-80 kWh) to see how they'd perform with your actual usage data.
 
 ## ROI Analysis
 
 Configure your actual OVO rates to calculate payback:
 
-| Input | Description |
-|-------|-------------|
-| **Peak Rate** | What you pay during peak hours (c/kWh) |
-| **Off-Peak Rate** | What you pay during off-peak (c/kWh) |
-| **Feed-in Tariff** | What OVO pays you for exports (c/kWh) |
-| **Battery Cost** | Installed cost per kWh ($/kWh) |
+| Input | Default | Description |
+|-------|---------|-------------|
+| **Peak Rate** | 33c | What you pay during peak hours (c/kWh) |
+| **Off-Peak Rate** | 16c | What you pay during off-peak (c/kWh) |
+| **Feed-in Tariff** | 5c | What OVO pays you for exports (c/kWh) |
+| **Battery Cost** | $540 | Installed cost per kWh (Sigenergy pricing) |
 
 Optional: **Free Power Window** - If your plan includes free electricity during certain hours (e.g., 11am-2pm), configure it to exclude from calculations.
 
 ## Charts & Analysis
 
 - **7-Day Rolling Average / Daily Values** - Toggle between smoothed trends and raw data
-- **Hourly Usage Pattern** - See when you use power throughout the day
+- **Battery Simulation** - Interactive "What If?" analysis with battery size selector
+- **Hourly Pattern** - See when you import power throughout the day
 - **Monthly Breakdown** - Track seasonal patterns
 - **Daylight vs Generation Hours** - Compare theoretical daylight to actual panel output
 - **Battery Size vs Coverage** - Visualize diminishing returns
@@ -147,7 +147,7 @@ uv run ruff check .
 
 - **Backend**: Flask, Pandas, NumPy
 - **Frontend**: Vanilla JS, Plotly.js
-- **Sunrise/Sunset**: [Astral](https://github.com/sffjunkie/astral) (for daylight hours chart)
+- **Sunrise/Sunset**: [Astral](https://github.com/sffjunkie/astral) (for daylight hours chart only)
 - **Postcodes**: [Matthew Proctor's Database](https://www.matthewproctor.com/australian_postcodes)
 
 ## License
@@ -157,6 +157,7 @@ MIT License
 ## Acknowledgments
 
 - [OVO Energy Australia](https://www.ovoenergy.com.au/) - Energy provider
+- [Sigenergy](https://www.sigenergy.com/) - Battery pricing and efficiency data
 - [Matthew Proctor](https://www.matthewproctor.com/australian_postcodes) - Australian postcode database
 - [Astral](https://github.com/sffjunkie/astral) - Sunrise/sunset calculations
 - [Plotly.js](https://plotly.com/javascript/) - Interactive charts

@@ -17,47 +17,54 @@ Don't over-engineer. Solve the problem at hand, not hypothetical future problems
 
 ## Project Overview
 
-**OVO Energy Solar Dashboard** is a Flask web application that analyzes electricity usage data exported from OVO Energy Australia. It calculates when energy is consumed during sunlight vs night hours and provides battery capacity recommendations with ROI analysis.
+**OVO Energy Solar Dashboard** is a Flask web application that analyzes electricity grid import data exported from OVO Energy Australia. It calculates when energy is drawn from the grid during daytime vs night hours and provides battery capacity recommendations with ROI analysis.
 
 ## Key Concepts
 
+### Terminology
+- **Daytime Grid Import**: Electricity bought from grid during solar generation hours
+- **Night Grid Import**: Electricity bought from grid when solar isn't generating
+- **Solar Export**: Electricity sent back to the grid
+
 ### Energy Data
-- **Register 1 (001)**: Grid consumption (electricity drawn from grid)
+- **Register 1 (001)**: Grid import (electricity drawn from grid)
 - **Register 2 (002) + SolarFlag=True**: Solar export (electricity sent to grid)
 - Data is in 5-minute intervals with ReadDate and ReadTime columns
 - Analysis starts from the first day with actual solar exports (non-zero Register 2 readings)
-- **Recommended: At least 12 months of data** for accurate battery recommendations (captures seasonal variations)
+- **Recommended: At least 12 months of data** for accurate battery recommendations
 
-### Sunlight Calculation
+### Sunlight Detection
 - **Data-driven approach**: Uses actual solar generation data, not astronomical sunrise/sunset
-- A timestamp is "sunlight" if solar export > 0.001 kWh at that time
-- More accurate than astronomical calculation because it accounts for:
-  - Panel orientation (east/west facing)
-  - Shading and obstructions
-  - Weather conditions
-  - Actual inverter behavior
+- A timestamp is "daytime" if solar export > 0.001 kWh at that time
+- More accurate because it accounts for panel orientation, shading, weather, inverter behavior
 
 ### Free Power Window
 - OVO offers free power during certain hours (default: 11am-2pm)
-- Grid usage during this window is excluded from "usage to offset" calculations
+- Grid import during this window is excluded from calculations
 - Configurable via UI - users can enable/disable and set custom times
 
 ### Battery Sizing Logic
-Percentile-based recommendations:
-- **Entry Level**: Covers 90th percentile summer night usage
-- **Best Value**: Covers 99th percentile summer night usage
-- **Winter Ready**: Covers 90th percentile winter night usage
+Pragmatic percentile-based recommendations using **8 kWh module increments** (Sigenergy standard):
+- **Entry Level**: Smallest battery whose usable capacity covers 90th percentile summer nights
+- **Best Value**: Smallest battery whose usable capacity covers 99th percentile summer nights
+- **Winter Ready**: Smallest battery whose usable capacity covers 90th percentile winter nights
 
-This approach:
-- Uses actual usage data percentiles (not arbitrary coverage targets)
-- Accounts for 90% round-trip battery efficiency
-- Recognizes that summer is where batteries work best (more solar to store)
-- Pragmatic about winter - you'll still need grid power
+Key settings:
+- `battery_efficiency = 0.97` (Sigenergy SigenStor actual usable capacity)
+- `battery_sizes = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80]` (8 kWh module increments)
+- Australian seasons: Summer = Dec-Feb, Winter = Jun-Aug
+
+### Battery Simulation
+The "What If?" simulation chart shows:
+- Original vs simulated night grid import
+- Original vs simulated solar export
+- Battery state of charge (SOC) with daily carryover
+- Stats: grid reduction %, export reduction %, self-consumed kWh
 
 ### ROI Analysis
+- Default battery cost: $540/kWh (Sigenergy pricing)
 - Users input their actual OVO rates (peak, off-peak, feed-in)
-- Calculates savings per kWh shifted from export to self-consumption
-- Estimates payback period and 10-year cumulative savings
+- Calculates payback period and 10-year cumulative savings
 
 ## Architecture
 
@@ -73,11 +80,19 @@ solar_dashboard/
 
 | Function | Purpose |
 |----------|---------|
-| `load_and_process_data()` | Load CSV, determine sunlight status from actual solar generation |
+| `load_and_process_data()` | Load CSV, determine daytime status from actual solar generation |
 | `filter_data_by_date_range()` | Filter data to user-selected analysis period |
-| `get_summary_stats()` | Aggregate consumption/export statistics |
-| `calculate_battery_recommendation()` | Seasonal coverage-based battery sizing |
+| `get_summary_stats()` | Aggregate grid import/export statistics |
+| `calculate_battery_recommendation()` | Percentile-based battery sizing |
 | `calculate_daylight_hours()` | Compare theoretical daylight vs actual generation |
+
+### Key Functions in `index.html` (JavaScript)
+
+| Function | Purpose |
+|----------|---------|
+| `simulateBattery()` | Simulate battery charging/discharging with daily carryover |
+| `renderBatterySimulation()` | Render "What If?" chart with battery size selector |
+| `renderTrendsChart()` | 7-day rolling average or daily values chart |
 
 ### API Endpoints
 
@@ -102,26 +117,17 @@ solar_dashboard/
 ### Modifying Battery Recommendations
 
 Key parameters in `calculate_battery_recommendation()`:
-- `battery_efficiency = 0.90` - Round-trip efficiency
-- `battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40]` - Available sizes
-- Percentile targets: summer 90th (entry), summer 99th (best value), winter 90th (winter ready)
-
-### Adding New Location Features
-
-The `postcodes.py` module provides:
-- `lookup_postcode(postcode)` → `Location` object
-- `search_locations(query)` → List of matching locations
-- `MAJOR_CITIES` dict for quick access to capital cities
+- `battery_efficiency = 0.97` - Sigenergy usable capacity ratio
+- `battery_sizes = [8, 16, 24, 32, ...]` - 8 kWh module increments
+- Find smallest battery whose `size * efficiency >= target_usage`
 
 ## Dependencies
 
 Core:
 - `flask` - Web framework
 - `pandas` - Data processing
-- `astral` - Sunrise/sunset calculations (for daylight hours chart)
+- `astral` - Sunrise/sunset calculations (for daylight hours chart only)
 - `numpy` - Numerical operations
-
-The postcode database (`data/australian_postcodes.csv`) is downloaded from [Matthew Proctor's database](https://www.matthewproctor.com/australian_postcodes).
 
 ## Common Issues
 
@@ -136,12 +142,7 @@ The postcode database (`data/australian_postcodes.csv`) is downloaded from [Matt
 - CSS: CSS variables for theming, dark theme default
 - Comments: Explain business logic, not obvious code
 - **Don't over-abstract**: If a function is only used once, it might not need to be a function
-
-## Environment Variables
-
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `SECRET_KEY` | `dev-key-change-in-production` | Flask session secret |
+- **Be pragmatic**: Don't over-buy batteries, recommend module-based sizes
 
 ## Running Locally
 
