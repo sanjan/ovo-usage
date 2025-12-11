@@ -13,6 +13,7 @@ This file provides context and instructions for AI agents (like Claude, Cursor, 
 - **Register 2 + SolarFlag=True**: Solar export (electricity sent to grid)
 - Data is in 5-minute intervals with ReadDate and ReadTime columns
 - Analysis starts from the first day with actual solar exports (non-zero Register 2 readings)
+- **Recommended: At least 12 months of data** for accurate battery recommendations (captures seasonal variations)
 
 ### Sunlight Calculation
 - Uses the `astral` library to calculate sunrise/sunset for Australian locations
@@ -69,7 +70,7 @@ solar_dashboard/
 
 Key parameters in `calculate_battery_recommendation()`:
 - `battery_efficiency = 0.90` - Round-trip efficiency
-- `battery_sizes = [5, 7, 10, 13.5, 15, 20]` - Common Australian sizes
+- `battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40]` - Common sizes (including larger for high-usage households)
 - Percentiles used: 75th and 90th for night consumption
 
 ### Adding New Location Features

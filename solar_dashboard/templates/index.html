@@ -1045,11 +1045,12 @@
         }
 
         function renderHourlyChart(hourly) {
+            const hourLabels = hourly.hours.map(h => `${h.toString().padStart(2, '0')}:00`);
             const traces = [
-                { x: hourly.hours.map(h => `${h.toString().padStart(2, '0')}:00`), y: hourly.consumption, name: 'Grid Consumption', type: 'bar', marker: { color: hourly.hours.map(h => h >= 6 && h <= 18 ? colors.sunlight : colors.night), opacity: 0.8 } },
-                { x: hourly.hours.map(h => `${h.toString().padStart(2, '0')}:00`), y: hourly.export, name: 'Solar Export', type: 'bar', marker: { color: colors.export, opacity: 0.8 } }
+                { x: hourLabels, y: hourly.consumption, name: 'Grid Consumption', type: 'bar', marker: { color: hourly.hours.map(h => h >= 6 && h <= 18 ? colors.sunlight : colors.night), opacity: 0.8 } },
+                { x: hourLabels, y: hourly.export, name: 'Solar Export', type: 'bar', marker: { color: colors.export, opacity: 0.8 } }
             ];
-            Plotly.newPlot('chart-hourly', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, xaxis: { ...plotlyLayout.xaxis, tickangle: -45 }, yaxis: { ...plotlyLayout.yaxis, title: 'Avg kWh' } }, plotlyConfig);
+            Plotly.newPlot('chart-hourly', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, xaxis: { ...plotlyLayout.xaxis, tickangle: -45, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Avg kWh' } }, plotlyConfig);
         }
 
         function renderMonthlyChart(monthly) {

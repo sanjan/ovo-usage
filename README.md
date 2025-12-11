@@ -38,6 +38,8 @@ Then open http://127.0.0.1:5000 in your browser.
 3. Select your date range and download the CSV file
 4. The file will be named like `OVOEnergy-Elec-XXXXXXXX-UsageData-DD-MM-YYYY-XXXXXXXX.csv`
 
+> ⚠️ **Recommended: At least 12 months of solar data** for accurate battery recommendations. This ensures seasonal variations (summer vs winter solar generation and consumption) are captured for reliable sizing guidance.
+
 ## OVO Energy CSV Format
 
 This dashboard **only works with OVO Energy Australia export files**. The expected format:

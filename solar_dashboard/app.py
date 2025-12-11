@@ -253,8 +253,8 @@ def calculate_battery_recommendation(consumption, exports):
     optimal_battery = min(p90_night_consumption, p75_daily_export) / battery_efficiency
     large_battery = p90_night_consumption / battery_efficiency
     
-    # Common battery sizes
-    battery_sizes = [5, 7, 10, 13.5, 15, 20]
+    # Common battery sizes (including larger options for high-usage households)
+    battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40]
     
     def find_nearest_size(target):
         return min(battery_sizes, key=lambda x: abs(x - target))
