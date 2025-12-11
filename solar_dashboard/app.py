@@ -395,7 +395,7 @@ def calculate_battery_recommendation(consumption, exports):
     # - Fox ESS: 5, 10, 14, 19, 23, 28, 33, 37, 42 kWh (~4.66 kWh modules)
     # - Tesla Powerwall: 13.5, 27, 40.5 kWh (13.5 kWh units)
     # - BYD: 5, 7.7, 10, 12.8, 15.4, 18, 20.5 kWh and up (2.56 kWh modules)
-    battery_sizes = [5, 8, 10, 13.5, 16, 20, 24, 27, 32, 40, 48, 56, 64, 80]
+    battery_sizes = [5, 8, 10, 13.5, 16, 20, 24, 27, 30, 32, 35, 40, 45, 48, 56, 64, 72, 80]
     
     def calculate_savings(battery_kwh):
         usable_capacity = battery_kwh * battery_efficiency
