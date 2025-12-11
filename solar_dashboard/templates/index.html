@@ -829,6 +829,62 @@
             opacity: 0.8;
         }
 
+        /* Toggle Switch */
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            margin-left: 1rem;
+            padding-left: 1rem;
+            border-left: 1px solid var(--border);
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .toggle-slider {
+            width: 36px;
+            height: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--accent-sun);
+            border-color: var(--accent-sun);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(16px);
+            background: #000;
+        }
+
+        .toggle-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .toggle-switch input:checked ~ .toggle-label {
+            color: var(--accent-sun);
+        }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-secondary); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -938,11 +994,16 @@
             <div class="charts-section">
                 <div class="chart-card full-width">
                     <div class="chart-header">
-                        <div class="chart-title">📈 7-Day Rolling Average Trends</div>
+                        <div class="chart-title">📈 <span id="trends-chart-title">7-Day Rolling Average</span></div>
                         <div class="legend">
                             <div class="legend-item"><div class="legend-dot sunlight"></div>Sunlight Usage</div>
                             <div class="legend-item"><div class="legend-dot night"></div>Night Usage</div>
                             <div class="legend-item"><div class="legend-dot export"></div>Solar Export</div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="trends-toggle">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">Daily</span>
+                            </label>
                         </div>
                     </div>
                     <div id="chart-trends" class="chart-container tall"></div>
@@ -1101,6 +1162,7 @@
         let currentLocation = {{ location | tojson }};
         let currentBatteryData = null; // Store for ROI recalculations
         let dateRange = { start: null, end: null, solarStart: null, dataEnd: null };
+        let trendsData = { daily: null, rolling: null }; // Store for toggle
 
         // Colors
         const colors = {
@@ -1304,7 +1366,14 @@
                     `${data.stats.solar_start} to ${data.stats.data_end}`;
 
                 updateStats(data.stats);
-                renderTrendsChart(data.trends);
+                
+                // Store trends data for toggle
+                trendsData = {
+                    daily: data.daily,
+                    rolling: data.trends
+                };
+                renderTrendsChart(trendsData, document.getElementById('trends-toggle').checked ? 'daily' : 'rolling');
+                
                 renderHourlyChart(data.hourly);
                 renderMonthlyChart(data.monthly);
                 renderPieChart(data.stats);
@@ -1340,13 +1409,48 @@
             document.getElementById('stat-night-pct').textContent = stats.night_pct;
         }
 
-        function renderTrendsChart(trends) {
+        function renderTrendsChart(data, mode = 'rolling') {
+            const isDaily = mode === 'daily';
+            const chartData = isDaily ? data.daily : data.rolling;
+            
             const traces = [
-                { x: trends.dates, y: trends.sunlight, name: 'Sunlight Usage', type: 'scatter', mode: 'lines', line: { color: colors.sunlight, width: 2.5 }, fill: 'tozeroy', fillcolor: 'rgba(251, 191, 36, 0.1)' },
-                { x: trends.dates, y: trends.night, name: 'Night Usage', type: 'scatter', mode: 'lines', line: { color: colors.night, width: 2.5 } },
-                { x: trends.dates, y: trends.export, name: 'Solar Export', type: 'scatter', mode: 'lines', line: { color: colors.export, width: 2.5 } }
+                { 
+                    x: chartData.dates, 
+                    y: chartData.sunlight, 
+                    name: 'Sunlight Usage', 
+                    type: 'scatter', 
+                    mode: isDaily ? 'lines' : 'lines', 
+                    line: { color: colors.sunlight, width: isDaily ? 1.5 : 2.5 }, 
+                    fill: 'tozeroy', 
+                    fillcolor: 'rgba(251, 191, 36, 0.1)' 
+                },
+                { 
+                    x: chartData.dates, 
+                    y: chartData.night, 
+                    name: 'Night Usage', 
+                    type: 'scatter', 
+                    mode: isDaily ? 'lines' : 'lines', 
+                    line: { color: colors.night, width: isDaily ? 1.5 : 2.5 } 
+                },
+                { 
+                    x: chartData.dates, 
+                    y: chartData.export, 
+                    name: 'Solar Export', 
+                    type: 'scatter', 
+                    mode: isDaily ? 'lines' : 'lines', 
+                    line: { color: colors.export, width: isDaily ? 1.5 : 2.5 } 
+                }
             ];
-            Plotly.newPlot('chart-trends', traces, { ...plotlyLayout, showlegend: false, yaxis: { ...plotlyLayout.yaxis, title: 'kWh (7-day avg)' }, hovermode: 'x unified' }, plotlyConfig);
+            
+            const yAxisTitle = isDaily ? 'kWh (daily)' : 'kWh (7-day avg)';
+            document.getElementById('trends-chart-title').textContent = isDaily ? 'Daily Values' : '7-Day Rolling Average';
+            
+            Plotly.newPlot('chart-trends', traces, { 
+                ...plotlyLayout, 
+                showlegend: false, 
+                yaxis: { ...plotlyLayout.yaxis, title: yAxisTitle }, 
+                hovermode: 'x unified' 
+            }, plotlyConfig);
         }
 
         function renderHourlyChart(hourly) {
@@ -1656,6 +1760,13 @@
 
         // ROI Update button
         document.getElementById('update-roi-btn').addEventListener('click', updateROIAnalysis);
+
+        // Trends chart toggle (rolling avg vs daily)
+        document.getElementById('trends-toggle').addEventListener('change', (e) => {
+            if (trendsData.daily && trendsData.rolling) {
+                renderTrendsChart(trendsData, e.target.checked ? 'daily' : 'rolling');
+            }
+        });
 
         // Date Range button
         document.getElementById('apply-date-range').addEventListener('click', () => {
