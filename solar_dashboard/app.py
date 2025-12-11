@@ -390,12 +390,12 @@ def calculate_battery_recommendation(consumption, exports):
     # Battery efficiency
     battery_efficiency = 0.90
     
-    # Common battery sizes in Australia (realistic module combinations):
-    # - Sigenergy: 5, 8, 16, 24, 32, 40, 48 kWh (5/8 kWh modules, up to 6 per stack)
-    # - Fox ESS: 5, 10, 14, 19, 23, 28, 33, 37, 42 kWh (~4.66 kWh modules)
-    # - Tesla Powerwall: 13.5, 27, 40.5 kWh (13.5 kWh units)
-    # - BYD: 5, 7.7, 10, 12.8, 15.4, 18, 20.5 kWh and up (2.56 kWh modules)
-    battery_sizes = [5, 8, 10, 13.5, 16, 20, 24, 27, 30, 32, 35, 40, 45, 48, 56, 64, 72, 80]
+    # Realistic battery sizes based on common Australian modules:
+    # - Sigenergy: 8 kWh modules (8, 16, 24, 32, 40, 48)
+    # - Fox ESS: ~5 kWh modules (5, 10, 15, 19, 23, 28, 33, 37, 42)
+    # - Tesla Powerwall: 13.5 kWh units (13.5, 27, 40.5)
+    # Using 8 kWh increments as base (most common modular system)
+    battery_sizes = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80]
     
     def calculate_savings(battery_kwh):
         usable_capacity = battery_kwh * battery_efficiency
@@ -441,25 +441,27 @@ def calculate_battery_recommendation(consumption, exports):
     battery_analysis = [{'size_kwh': size, **calculate_savings(size)} for size in battery_sizes]
     
     # Percentile-based recommendations (accounting for 90% battery efficiency):
-    # - Minimum: covers 90th percentile summer night usage
-    # - Sweet Spot: covers 99th percentile summer night usage
-    # - Maximum: covers 90th percentile winter night usage
+    # - Entry Level: ~90th percentile summer night usage
+    # - Best Value: ~99th percentile summer night usage
+    # - Winter Ready: ~90th percentile winter night usage
     
     def find_battery_for_usage(target_kwh):
-        """Find closest battery size to the target usage (pragmatic, not strict)."""
+        """Find pragmatic battery size - don't over-buy, best bang for buck."""
         usable_needed = target_kwh / battery_efficiency  # Account for efficiency losses
         
-        # Find the closest battery size (not strictly >= target)
-        closest_size = battery_sizes[0]
-        closest_diff = abs(battery_sizes[0] - usable_needed)
+        # Find largest battery <= target (don't over-buy)
+        # Only go above if nothing below exists
+        best_below = None
+        smallest_above = None
         
         for size in battery_sizes:
-            diff = abs(size - usable_needed)
-            if diff < closest_diff:
-                closest_diff = diff
-                closest_size = size
+            if size <= usable_needed:
+                best_below = size  # Keep updating - we want the largest below
+            elif smallest_above is None:
+                smallest_above = size  # First one above
         
-        return closest_size
+        # Prefer the one below (pragmatic), fall back to above if nothing below
+        return best_below if best_below else smallest_above or battery_sizes[0]
     
     minimum_size = find_battery_for_usage(summer_night_p90)
     sweet_spot_size = find_battery_for_usage(summer_night_p99)
