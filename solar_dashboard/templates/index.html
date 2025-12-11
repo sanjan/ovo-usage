@@ -954,12 +954,12 @@
         <div id="dashboard" class="hidden">
             <div class="stats-grid">
                 <div class="stat-card sunlight">
-                    <div class="stat-label">☀️ Paid Sunlight Usage</div>
+                    <div class="stat-label">☀️ Paid Daytime Grid Import</div>
                     <div class="stat-value sunlight"><span id="stat-sunlight">--</span><span class="stat-unit">kWh</span></div>
                     <div class="stat-detail"><span id="stat-sunlight-pct">--</span>% of total (excl. free window)</div>
                 </div>
                 <div class="stat-card night">
-                    <div class="stat-label">🌙 Night Usage</div>
+                    <div class="stat-label">🌙 Night Grid Import</div>
                     <div class="stat-value night"><span id="stat-night">--</span><span class="stat-unit">kWh</span></div>
                     <div class="stat-detail"><span id="stat-night-pct">--</span>% of total</div>
                 </div>
@@ -1001,8 +1001,8 @@
                     <div class="chart-header">
                         <div class="chart-title">📈 <span id="trends-chart-title">7-Day Rolling Average</span></div>
                         <div class="legend">
-                            <div class="legend-item"><div class="legend-dot sunlight"></div>Sunlight Usage</div>
-                            <div class="legend-item"><div class="legend-dot night"></div>Night Usage</div>
+                            <div class="legend-item"><div class="legend-dot sunlight"></div>Daytime Grid Import</div>
+                            <div class="legend-item"><div class="legend-dot night"></div>Night Grid Import</div>
                             <div class="legend-item"><div class="legend-dot export"></div>Solar Export</div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="trends-toggle">
@@ -1521,7 +1521,7 @@
             
             // Update sunlight label based on free window
             const sunlightLabel = document.querySelector('.stat-card.sunlight .stat-label');
-            sunlightLabel.textContent = freeWindowEnabled ? '☀️ Paid Sunlight Usage' : '☀️ Sunlight Usage';
+            sunlightLabel.textContent = freeWindowEnabled ? '☀️ Paid Daytime Grid Import' : '☀️ Daytime Grid Import';
         }
 
         function renderTrendsChart(data, mode = 'rolling') {
@@ -1532,7 +1532,7 @@
                 { 
                     x: chartData.dates, 
                     y: chartData.sunlight, 
-                    name: 'Sunlight Usage', 
+                    name: 'Daytime Grid Import', 
                     type: 'scatter', 
                     mode: isDaily ? 'lines' : 'lines', 
                     line: { color: colors.sunlight, width: isDaily ? 1.5 : 2.5 }, 
@@ -1542,7 +1542,7 @@
                 { 
                     x: chartData.dates, 
                     y: chartData.night, 
-                    name: 'Night Usage', 
+                    name: 'Night Grid Import', 
                     type: 'scatter', 
                     mode: isDaily ? 'lines' : 'lines', 
                     line: { color: colors.night, width: isDaily ? 1.5 : 2.5 } 
@@ -1645,7 +1645,7 @@
                 {
                     x: sim.dates,
                     y: rolling(sim.originalNight),
-                    name: 'Night Usage (Original)',
+                    name: 'Night Grid Import (Original)',
                     type: 'scatter',
                     mode: 'lines',
                     line: { color: colors.night, width: 2, dash: 'dot' },
@@ -1654,7 +1654,7 @@
                 {
                     x: sim.dates,
                     y: rolling(sim.simNightUsage),
-                    name: 'Night Usage (With Battery)',
+                    name: 'Night Grid Import (With Battery)',
                     type: 'scatter',
                     mode: 'lines',
                     line: { color: colors.night, width: 2.5 },
@@ -1815,7 +1815,7 @@
         }
 
         function renderPieChart(stats) {
-            const traces = [{ values: [stats.sunlight_consumption, stats.night_consumption], labels: ['Sunlight Usage', 'Night Usage'], type: 'pie', hole: 0.55, marker: { colors: [colors.sunlight, colors.night] }, textinfo: 'percent', textfont: { color: '#fff', size: 14 }, hovertemplate: '%{label}<br>%{value:.1f} kWh<br>%{percent}<extra></extra>' }];
+            const traces = [{ values: [stats.sunlight_consumption, stats.night_consumption], labels: ['Daytime Grid Import', 'Night Grid Import'], type: 'pie', hole: 0.55, marker: { colors: [colors.sunlight, colors.night] }, textinfo: 'percent', textfont: { color: '#fff', size: 14 }, hovertemplate: '%{label}<br>%{value:.1f} kWh<br>%{percent}<extra></extra>' }];
             Plotly.newPlot('chart-pie', traces, { ...plotlyLayout, showlegend: true, legend: { x: 0.5, y: -0.1, xanchor: 'center', orientation: 'h' }, annotations: [{ text: `${stats.total_consumption.toLocaleString()}<br>kWh`, x: 0.5, y: 0.5, font: { size: 18, color: colors.text }, showarrow: false }] }, plotlyConfig);
         }
 
@@ -1832,7 +1832,7 @@
         function renderBatteryMetrics(battery) {
             const m = battery.metrics;
             document.getElementById('battery-metrics').innerHTML = `
-                <div class="metric-item"><div class="metric-label">Avg Night Usage</div><div class="metric-value highlight-night">${m.avg_night_consumption} kWh</div></div>
+                <div class="metric-item"><div class="metric-label">Avg Night Grid Import</div><div class="metric-value highlight-night">${m.avg_night_consumption} kWh</div></div>
                 <div class="metric-item"><div class="metric-label">Peak Night (90th %ile)</div><div class="metric-value highlight-night">${m.p90_night_consumption} kWh</div></div>
                 <div class="metric-item"><div class="metric-label">Avg Daily Export</div><div class="metric-value highlight-export">${m.avg_daily_export} kWh</div></div>
                 <div class="metric-item"><div class="metric-label">Storable Energy</div><div class="metric-value highlight-export">${m.avg_potential_storage} kWh</div></div>
@@ -1891,7 +1891,7 @@
         function renderBatterySavingsChart(battery) {
             const analysis = battery.battery_analysis;
             const traces = [{ x: analysis.map(a => `${a.size_kwh} kWh`), y: analysis.map(a => a.night_coverage_pct), name: 'Night Coverage %', type: 'bar', marker: { color: analysis.map(a => a.size_kwh === battery.recommendations.sweet_spot_kwh ? colors.export : 'rgba(52, 211, 153, 0.5)') }, text: analysis.map(a => `${a.night_coverage_pct}%`), textposition: 'outside', textfont: { color: colors.text } }];
-            Plotly.newPlot('chart-battery-savings', traces, { ...plotlyLayout, showlegend: false, xaxis: { ...plotlyLayout.xaxis, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Night Usage Covered (%)', range: [0, 110] }, annotations: [{ x: `${battery.recommendations.sweet_spot_kwh} kWh`, y: analysis.find(a => a.size_kwh === battery.recommendations.sweet_spot_kwh)?.night_coverage_pct || 0, text: '★ Best Value', showarrow: true, arrowhead: 2, arrowcolor: colors.export, font: { color: colors.export, size: 11 }, ax: 0, ay: -40 }] }, plotlyConfig);
+            Plotly.newPlot('chart-battery-savings', traces, { ...plotlyLayout, showlegend: false, xaxis: { ...plotlyLayout.xaxis, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Night Grid Import Covered (%)', range: [0, 110] }, annotations: [{ x: `${battery.recommendations.sweet_spot_kwh} kWh`, y: analysis.find(a => a.size_kwh === battery.recommendations.sweet_spot_kwh)?.night_coverage_pct || 0, text: '★ Best Value', showarrow: true, arrowhead: 2, arrowcolor: colors.export, font: { color: colors.export, size: 11 }, ax: 0, ay: -40 }] }, plotlyConfig);
         }
 
         function renderMarginalBenefitChart(battery) {
@@ -1903,7 +1903,7 @@
         function renderSeasonalChart(battery) {
             const m = battery.metrics;
             const traces = [
-                { x: ['Winter', 'Summer'], y: [m.winter_night_avg, m.summer_night_avg], name: 'Night Usage', type: 'bar', marker: { color: colors.night } },
+                { x: ['Winter', 'Summer'], y: [m.winter_night_avg, m.summer_night_avg], name: 'Night Grid Import', type: 'bar', marker: { color: colors.night } },
                 { x: ['Winter', 'Summer'], y: [m.winter_export_avg, m.summer_export_avg], name: 'Solar Export', type: 'bar', marker: { color: colors.export } }
             ];
             Plotly.newPlot('chart-seasonal', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, xaxis: { ...plotlyLayout.xaxis, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Daily Average (kWh)' }, annotations: [
