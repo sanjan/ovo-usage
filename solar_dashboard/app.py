@@ -158,12 +158,13 @@ def load_and_process_data(filepath: str, location: Location):
     consumption['is_sunlight'] = consumption['datetime'].isin(solar_generating_times)
     exports['is_sunlight'] = exports['datetime'].isin(solar_generating_times)
     
-    # Free power window (OVO: 11am-2pm) - grid usage during this time is free
-    # Mark these separately so they can be excluded from "usage to offset"
+    # Free power window - will be set per-request, default to no free window here
     consumption['hour'] = consumption['datetime'].dt.hour
-    consumption['is_free_window'] = (consumption['hour'] >= 11) & (consumption['hour'] < 14)
+    consumption['minute'] = consumption['datetime'].dt.minute
+    consumption['is_free_window'] = False  # Default, will be updated per request
     exports['hour'] = exports['datetime'].dt.hour
-    exports['is_free_window'] = (exports['hour'] >= 11) & (exports['hour'] < 14)
+    exports['minute'] = exports['datetime'].dt.minute
+    exports['is_free_window'] = False
     
     result = {
         'consumption': consumption,
@@ -611,8 +612,36 @@ def get_data():
         data['consumption'], data['exports'], analysis_start, analysis_end
     )
     
+    # Apply free window settings
+    free_window_enabled = request.args.get('free_window_enabled', 'true').lower() == 'true'
+    free_window_start = request.args.get('free_window_start', '11:00')
+    free_window_end = request.args.get('free_window_end', '14:00')
+    
+    if free_window_enabled:
+        try:
+            start_hour, start_min = map(int, free_window_start.split(':'))
+            end_hour, end_min = map(int, free_window_end.split(':'))
+            start_minutes = start_hour * 60 + start_min
+            end_minutes = end_hour * 60 + end_min
+            
+            # Calculate minutes from midnight for each reading
+            consumption_minutes = consumption['hour'] * 60 + consumption['minute']
+            exports_minutes = exports['hour'] * 60 + exports['minute']
+            
+            consumption['is_free_window'] = (consumption_minutes >= start_minutes) & (consumption_minutes < end_minutes)
+            exports['is_free_window'] = (exports_minutes >= start_minutes) & (exports_minutes < end_minutes)
+        except (ValueError, KeyError):
+            consumption['is_free_window'] = False
+            exports['is_free_window'] = False
+    else:
+        consumption['is_free_window'] = False
+        exports['is_free_window'] = False
+    
     # Summary stats
     stats = get_summary_stats(consumption, exports)
+    stats['free_window_enabled'] = free_window_enabled
+    stats['free_window_start'] = free_window_start
+    stats['free_window_end'] = free_window_end
     stats['solar_start'] = str(solar_start)
     stats['data_end'] = str(data_end)
     stats['analysis_start'] = str(analysis_start)

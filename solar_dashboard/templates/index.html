@@ -963,8 +963,8 @@
                     <div class="stat-value night"><span id="stat-night">--</span><span class="stat-unit">kWh</span></div>
                     <div class="stat-detail"><span id="stat-night-pct">--</span>% of total</div>
                 </div>
-                <div class="stat-card" style="border-left-color: #a855f7;">
-                    <div class="stat-label">🆓 Free Window (11am-2pm)</div>
+                <div class="stat-card" style="border-left-color: #a855f7;" id="stat-card-free-window">
+                    <div class="stat-label">🆓 Free Window (<span id="stat-free-window-times">11am-2pm</span>)</div>
                     <div class="stat-value" style="color: #a855f7;"><span id="stat-free-window">--</span><span class="stat-unit">kWh</span></div>
                     <div class="stat-detail"><span id="stat-free-window-pct">--</span>% of total (FREE!)</div>
                 </div>
@@ -1123,6 +1123,23 @@
                         <div class="rate-input-wrapper">
                             <input type="number" class="rate-input" id="rate-battery-cost" value="1100" min="0" max="5000" step="50">
                             <span class="rate-unit">$/kWh</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rate-inputs" style="margin-top: 1rem;">
+                    <div class="rate-input-group" style="flex: 2;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="free-window-enabled" checked style="width: 18px; height: 18px; accent-color: var(--accent-export);">
+                            Free Power Window
+                        </label>
+                        <div class="rate-input-wrapper" style="margin-top: 0.5rem;">
+                            <input type="time" class="rate-input" id="free-window-start" value="11:00" style="width: auto;">
+                            <span class="rate-unit">to</span>
+                            <input type="time" class="rate-input" id="free-window-end" value="14:00" style="width: auto;">
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            Grid usage during this window won't count towards battery savings
                         </div>
                     </div>
                 </div>
@@ -1348,10 +1365,25 @@
             document.getElementById('loading-location').textContent = currentLocation.display_name;
 
             try {
-                // Build URL with date parameters if using custom dates
+                // Build URL with parameters
                 let url = '/api/data';
+                const params = new URLSearchParams();
+                
                 if (useCustomDates && dateRange.start && dateRange.end) {
-                    url += `?start_date=${dateRange.start}&end_date=${dateRange.end}`;
+                    params.set('start_date', dateRange.start);
+                    params.set('end_date', dateRange.end);
+                }
+                
+                // Free window settings
+                const freeWindowEnabled = document.getElementById('free-window-enabled').checked;
+                params.set('free_window_enabled', freeWindowEnabled);
+                if (freeWindowEnabled) {
+                    params.set('free_window_start', document.getElementById('free-window-start').value);
+                    params.set('free_window_end', document.getElementById('free-window-end').value);
+                }
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
                 }
                 
                 const response = await fetch(url);
@@ -1418,7 +1450,8 @@
 
         function updateStats(stats) {
             // Show paid sunlight (excluding free window) or total sunlight if not available
-            const paidSunlight = stats.paid_sunlight_consumption !== undefined 
+            const freeWindowEnabled = stats.free_window_enabled !== false;
+            const paidSunlight = (freeWindowEnabled && stats.paid_sunlight_consumption !== undefined)
                 ? stats.paid_sunlight_consumption 
                 : stats.sunlight_consumption;
             document.getElementById('stat-sunlight').textContent = paidSunlight.toLocaleString();
@@ -1434,9 +1467,31 @@
             document.getElementById('stat-sunlight-pct').textContent = paidSunlightPct;
             document.getElementById('stat-night-pct').textContent = stats.night_pct;
             
-            // Free window stats
-            document.getElementById('stat-free-window').textContent = (stats.free_window_consumption || 0).toLocaleString();
-            document.getElementById('stat-free-window-pct').textContent = stats.free_window_pct || 0;
+            // Free window stats - show/hide based on whether enabled
+            const freeWindowCard = document.getElementById('stat-card-free-window');
+            if (freeWindowEnabled && stats.free_window_consumption > 0) {
+                freeWindowCard.style.display = '';
+                document.getElementById('stat-free-window').textContent = stats.free_window_consumption.toLocaleString();
+                document.getElementById('stat-free-window-pct').textContent = stats.free_window_pct || 0;
+                
+                // Format times for display
+                const formatTime = (timeStr) => {
+                    const [h, m] = timeStr.split(':');
+                    const hour = parseInt(h);
+                    const ampm = hour >= 12 ? 'pm' : 'am';
+                    const hour12 = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+                    return `${hour12}${ampm}`;
+                };
+                const startTime = formatTime(stats.free_window_start || '11:00');
+                const endTime = formatTime(stats.free_window_end || '14:00');
+                document.getElementById('stat-free-window-times').textContent = `${startTime}-${endTime}`;
+            } else {
+                freeWindowCard.style.display = 'none';
+            }
+            
+            // Update sunlight label based on free window
+            const sunlightLabel = document.querySelector('.stat-card.sunlight .stat-label');
+            sunlightLabel.textContent = freeWindowEnabled ? '☀️ Paid Sunlight Usage' : '☀️ Sunlight Usage';
         }
 
         function renderTrendsChart(data, mode = 'rolling') {
