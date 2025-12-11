@@ -387,8 +387,8 @@ def calculate_battery_recommendation(consumption, exports):
         if len(summer_exports) > 0 else avg_daily_export
     )
     
-    # Battery efficiency
-    battery_efficiency = 0.90
+    # Battery efficiency (Sigenergy SigenStor is ~97% usable capacity)
+    battery_efficiency = 0.97
     
     # Realistic battery sizes based on common Australian modules:
     # - Sigenergy: 8 kWh modules (8, 16, 24, 32, 40, 48)
@@ -440,28 +440,21 @@ def calculate_battery_recommendation(consumption, exports):
     
     battery_analysis = [{'size_kwh': size, **calculate_savings(size)} for size in battery_sizes]
     
-    # Percentile-based recommendations (accounting for 90% battery efficiency):
+    # Percentile-based recommendations:
     # - Entry Level: ~90th percentile summer night usage
     # - Best Value: ~99th percentile summer night usage
     # - Winter Ready: ~90th percentile winter night usage
     
     def find_battery_for_usage(target_kwh):
-        """Find pragmatic battery size - don't over-buy, best bang for buck."""
-        usable_needed = target_kwh / battery_efficiency  # Account for efficiency losses
-        
-        # Find largest battery <= target (don't over-buy)
-        # Only go above if nothing below exists
-        best_below = None
-        smallest_above = None
-        
+        """Find pragmatic battery size - smallest that covers target, or closest below."""
+        # Find smallest battery whose usable capacity >= target
         for size in battery_sizes:
-            if size <= usable_needed:
-                best_below = size  # Keep updating - we want the largest below
-            elif smallest_above is None:
-                smallest_above = size  # First one above
+            usable = size * battery_efficiency
+            if usable >= target_kwh:
+                return size
         
-        # Prefer the one below (pragmatic), fall back to above if nothing below
-        return best_below if best_below else smallest_above or battery_sizes[0]
+        # If nothing covers it, return largest available
+        return battery_sizes[-1]
     
     minimum_size = find_battery_for_usage(summer_night_p90)
     sweet_spot_size = find_battery_for_usage(summer_night_p99)
