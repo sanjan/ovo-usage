@@ -390,7 +390,7 @@ def calculate_battery_recommendation(consumption, exports):
     battery_efficiency = 0.90
     
     # Common battery sizes (including larger options for high-usage households)
-    battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40]
+    battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40, 50, 60, 80, 100]
     
     def calculate_savings(battery_kwh):
         usable_capacity = battery_kwh * battery_efficiency
