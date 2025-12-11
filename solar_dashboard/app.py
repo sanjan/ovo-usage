@@ -135,7 +135,8 @@ def load_and_process_data(filepath: str, location: Location):
         raise ValueError("No solar exports found in data! Make sure the file contains Register=2 entries with SolarFlag=True.")
     
     solar_start = non_zero_exports['date'].min()
-    print(f"Solar start date: {solar_start}")
+    data_end = df['date'].max()
+    print(f"Solar start date: {solar_start}, Data end: {data_end}")
     
     # Filter data from solar start date onwards
     df_filtered = df[df['date'] >= solar_start].copy()
@@ -152,12 +153,57 @@ def load_and_process_data(filepath: str, location: Location):
     result = {
         'consumption': consumption,
         'exports': exports,
-        'solar_start': solar_start
+        'solar_start': solar_start,
+        'data_end': data_end
     }
     
     _data_cache[cache_key] = result
     print("Data processing complete!")
     return result
+
+
+def filter_data_by_date_range(consumption, exports, start_date, end_date):
+    """Filter consumption and exports data to a specific date range."""
+    from datetime import date
+    
+    if isinstance(start_date, str):
+        start_date = date.fromisoformat(start_date)
+    if isinstance(end_date, str):
+        end_date = date.fromisoformat(end_date)
+    
+    filtered_consumption = consumption[
+        (consumption['date'] >= start_date) & (consumption['date'] <= end_date)
+    ].copy()
+    filtered_exports = exports[
+        (exports['date'] >= start_date) & (exports['date'] <= end_date)
+    ].copy()
+    
+    return filtered_consumption, filtered_exports
+
+
+def suggest_date_range(solar_start, data_end):
+    """Suggest a 1-year date range for analysis."""
+    from datetime import timedelta, date
+    
+    # Calculate total days available
+    total_days = (data_end - solar_start).days
+    
+    if total_days >= 365:
+        # If we have more than a year, suggest the most recent full year
+        suggested_end = data_end
+        suggested_start = date(data_end.year - 1, data_end.month, data_end.day)
+        # Make sure start is not before solar_start
+        if suggested_start < solar_start:
+            suggested_start = solar_start
+            suggested_end = date(solar_start.year + 1, solar_start.month, solar_start.day)
+            if suggested_end > data_end:
+                suggested_end = data_end
+    else:
+        # Less than a year, use all available data
+        suggested_start = solar_start
+        suggested_end = data_end
+    
+    return suggested_start, suggested_end
 
 
 def get_summary_stats(consumption, exports):
@@ -427,12 +473,38 @@ def get_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
     
-    consumption = data['consumption']
-    exports = data['exports']
+    # Get date range parameters or use suggested range
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    
+    solar_start = data['solar_start']
+    data_end = data['data_end']
+    
+    # Calculate suggested range
+    suggested_start, suggested_end = suggest_date_range(solar_start, data_end)
+    
+    # Use provided dates or suggested ones
+    if start_date and end_date:
+        from datetime import date
+        analysis_start = date.fromisoformat(start_date)
+        analysis_end = date.fromisoformat(end_date)
+    else:
+        analysis_start = suggested_start
+        analysis_end = suggested_end
+    
+    # Filter data to the selected range
+    consumption, exports = filter_data_by_date_range(
+        data['consumption'], data['exports'], analysis_start, analysis_end
+    )
     
     # Summary stats
     stats = get_summary_stats(consumption, exports)
-    stats['solar_start'] = str(data['solar_start'])
+    stats['solar_start'] = str(solar_start)
+    stats['data_end'] = str(data_end)
+    stats['analysis_start'] = str(analysis_start)
+    stats['analysis_end'] = str(analysis_end)
+    stats['suggested_start'] = str(suggested_start)
+    stats['suggested_end'] = str(suggested_end)
     stats['location'] = location.to_dict()
     
     # Daily data

@@ -755,6 +755,80 @@
             margin-left: 0.5rem;
         }
 
+        /* Date Range Selector */
+        .date-range-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .date-range-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .date-range-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .date-range-inputs {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .date-input {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .date-input:focus {
+            border-color: var(--accent-sun);
+        }
+
+        .date-separator {
+            color: var(--text-secondary);
+        }
+
+        .date-range-btn {
+            padding: 0.5rem 1rem;
+            background: var(--gradient-sun);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .date-range-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .date-range-hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-secondary); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -842,6 +916,22 @@
                     <div class="stat-label">📊 Total Consumption</div>
                     <div class="stat-value total"><span id="stat-total">--</span><span class="stat-unit">kWh</span></div>
                     <div class="stat-detail">Over <span id="stat-days">--</span> days</div>
+                </div>
+            </div>
+
+            <!-- Date Range Selector -->
+            <div class="date-range-section">
+                <div class="date-range-info">
+                    <span class="date-range-label">📅 Analysis Period:</span>
+                    <div class="date-range-inputs">
+                        <input type="date" class="date-input" id="date-start">
+                        <span class="date-separator">to</span>
+                        <input type="date" class="date-input" id="date-end">
+                    </div>
+                    <button class="date-range-btn" id="apply-date-range">Apply Range</button>
+                </div>
+                <div class="date-range-hint" id="date-range-hint">
+                    Data available: <span id="data-available-range">--</span>
                 </div>
             </div>
 
@@ -1010,6 +1100,7 @@
         let hasFile = {{ 'true' if has_data else 'false' }};
         let currentLocation = {{ location | tojson }};
         let currentBatteryData = null; // Store for ROI recalculations
+        let dateRange = { start: null, end: null, solarStart: null, dataEnd: null };
 
         // Colors
         const colors = {
@@ -1173,13 +1264,19 @@
         // Analyze Button
         analyzeBtn.addEventListener('click', loadData);
 
-        async function loadData() {
+        async function loadData(useCustomDates = false) {
             document.getElementById('loading').classList.remove('hidden');
             document.getElementById('dashboard').classList.add('hidden');
             document.getElementById('loading-location').textContent = currentLocation.display_name;
 
             try {
-                const response = await fetch('/api/data');
+                // Build URL with date parameters if using custom dates
+                let url = '/api/data';
+                if (useCustomDates && dateRange.start && dateRange.end) {
+                    url += `?start_date=${dateRange.start}&end_date=${dateRange.end}`;
+                }
+                
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.error) {
@@ -1190,6 +1287,21 @@
 
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('dashboard').classList.remove('hidden');
+
+                // Update date range state and UI
+                dateRange.solarStart = data.stats.solar_start;
+                dateRange.dataEnd = data.stats.data_end;
+                dateRange.start = data.stats.analysis_start;
+                dateRange.end = data.stats.analysis_end;
+                
+                document.getElementById('date-start').value = data.stats.analysis_start;
+                document.getElementById('date-end').value = data.stats.analysis_end;
+                document.getElementById('date-start').min = data.stats.solar_start;
+                document.getElementById('date-start').max = data.stats.data_end;
+                document.getElementById('date-end').min = data.stats.solar_start;
+                document.getElementById('date-end').max = data.stats.data_end;
+                document.getElementById('data-available-range').textContent = 
+                    `${data.stats.solar_start} to ${data.stats.data_end}`;
 
                 updateStats(data.stats);
                 renderTrendsChart(data.trends);
@@ -1544,6 +1656,26 @@
 
         // ROI Update button
         document.getElementById('update-roi-btn').addEventListener('click', updateROIAnalysis);
+
+        // Date Range button
+        document.getElementById('apply-date-range').addEventListener('click', () => {
+            const startInput = document.getElementById('date-start').value;
+            const endInput = document.getElementById('date-end').value;
+            
+            if (!startInput || !endInput) {
+                alert('Please select both start and end dates');
+                return;
+            }
+            
+            if (startInput > endInput) {
+                alert('Start date must be before end date');
+                return;
+            }
+            
+            dateRange.start = startInput;
+            dateRange.end = endInput;
+            loadData(true);
+        });
 
         // Auto-load if we already have data
         {% if has_data %}
