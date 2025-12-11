@@ -1134,13 +1134,13 @@
         function renderBatterySavingsChart(battery) {
             const analysis = battery.battery_analysis;
             const traces = [{ x: analysis.map(a => `${a.size_kwh} kWh`), y: analysis.map(a => a.night_coverage_pct), name: 'Night Coverage %', type: 'bar', marker: { color: analysis.map(a => a.size_kwh === battery.recommendations.sweet_spot_kwh ? colors.export : 'rgba(52, 211, 153, 0.5)') }, text: analysis.map(a => `${a.night_coverage_pct}%`), textposition: 'outside', textfont: { color: colors.text } }];
-            Plotly.newPlot('chart-battery-savings', traces, { ...plotlyLayout, showlegend: false, yaxis: { ...plotlyLayout.yaxis, title: 'Night Usage Covered (%)', range: [0, 110] }, annotations: [{ x: `${battery.recommendations.sweet_spot_kwh} kWh`, y: analysis.find(a => a.size_kwh === battery.recommendations.sweet_spot_kwh)?.night_coverage_pct || 0, text: '★ Best Value', showarrow: true, arrowhead: 2, arrowcolor: colors.export, font: { color: colors.export, size: 11 }, ax: 0, ay: -40 }] }, plotlyConfig);
+            Plotly.newPlot('chart-battery-savings', traces, { ...plotlyLayout, showlegend: false, xaxis: { ...plotlyLayout.xaxis, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Night Usage Covered (%)', range: [0, 110] }, annotations: [{ x: `${battery.recommendations.sweet_spot_kwh} kWh`, y: analysis.find(a => a.size_kwh === battery.recommendations.sweet_spot_kwh)?.night_coverage_pct || 0, text: '★ Best Value', showarrow: true, arrowhead: 2, arrowcolor: colors.export, font: { color: colors.export, size: 11 }, ax: 0, ay: -40 }] }, plotlyConfig);
         }
 
         function renderMarginalBenefitChart(battery) {
             const mb = battery.marginal_benefits;
             const traces = [{ x: mb.map(m => `${m.from_size}→${m.to_size} kWh`), y: mb.map(m => m.marginal_benefit), type: 'scatter', mode: 'lines+markers', line: { color: colors.sunlight, width: 3 }, marker: { size: 10, color: colors.sunlight }, fill: 'tozeroy', fillcolor: 'rgba(251, 191, 36, 0.1)' }];
-            Plotly.newPlot('chart-marginal', traces, { ...plotlyLayout, showlegend: false, yaxis: { ...plotlyLayout.yaxis, title: 'Marginal Benefit (kWh/kWh)' }, annotations: [{ x: 0.5, y: 1.05, xref: 'paper', yref: 'paper', text: 'Higher = better value per additional kWh', showarrow: false, font: { color: colors.text, size: 11 } }] }, plotlyConfig);
+            Plotly.newPlot('chart-marginal', traces, { ...plotlyLayout, showlegend: false, xaxis: { ...plotlyLayout.xaxis, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Marginal Benefit (kWh/kWh)' }, annotations: [{ x: 0.5, y: 1.05, xref: 'paper', yref: 'paper', text: 'Higher = better value per additional kWh', showarrow: false, font: { color: colors.text, size: 11 } }] }, plotlyConfig);
         }
 
         function renderSeasonalChart(battery) {
@@ -1149,7 +1149,7 @@
                 { x: ['Winter', 'Summer'], y: [m.winter_night_avg, m.summer_night_avg], name: 'Night Usage', type: 'bar', marker: { color: colors.night } },
                 { x: ['Winter', 'Summer'], y: [m.winter_export_avg, m.summer_export_avg], name: 'Solar Export', type: 'bar', marker: { color: colors.export } }
             ];
-            Plotly.newPlot('chart-seasonal', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, yaxis: { ...plotlyLayout.yaxis, title: 'Daily Average (kWh)' }, annotations: [
+            Plotly.newPlot('chart-seasonal', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, xaxis: { ...plotlyLayout.xaxis, type: 'category' }, yaxis: { ...plotlyLayout.yaxis, title: 'Daily Average (kWh)' }, annotations: [
                 { x: 'Winter', y: Math.max(m.winter_night_avg, m.winter_export_avg) + 1, text: m.winter_export_avg >= m.winter_night_avg ? '✓ Export covers night' : '⚠ Need more export', showarrow: false, font: { color: m.winter_export_avg >= m.winter_night_avg ? colors.export : colors.sunlight, size: 11 } },
                 { x: 'Summer', y: Math.max(m.summer_night_avg, m.summer_export_avg) + 1, text: m.summer_export_avg >= m.summer_night_avg ? '✓ Export covers night' : '⚠ Need more export', showarrow: false, font: { color: m.summer_export_avg >= m.summer_night_avg ? colors.export : colors.sunlight, size: 11 } }
             ] }, plotlyConfig);
