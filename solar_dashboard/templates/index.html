@@ -1634,45 +1634,46 @@
 
         function renderBatteryOptions(battery) {
             const rec = battery.recommendations;
+            const metrics = battery.metrics;
             const analysis = battery.battery_analysis;
             
-            // Coverage-based recommendations:
-            // - Minimum: 70% summer night coverage
-            // - Sweet Spot: 100% summer night coverage  
-            // - Maximum: 30% winter night coverage
+            // Percentile-based recommendations:
+            // - Minimum: 90th percentile summer night usage
+            // - Sweet Spot: 99th percentile summer night usage  
+            // - Maximum: 90th percentile winter night usage
             const minimum = analysis.find(a => a.size_kwh === rec.minimum_kwh) || analysis[0];
             const sweetSpot = analysis.find(a => a.size_kwh === rec.sweet_spot_kwh) || analysis[2];
             const maximum = analysis.find(a => a.size_kwh === rec.maximum_kwh) || analysis[analysis.length - 1];
             
             document.getElementById('battery-options').innerHTML = `
                 <div class="battery-card">
-                    <div class="battery-card-title">Minimum</div>
+                    <div class="battery-card-title">Entry Level</div>
                     <div class="battery-size">${rec.minimum_kwh}<span> kWh</span></div>
-                    <div class="battery-coverage">${minimum.summer_coverage_pct || minimum.night_coverage_pct}% summer coverage</div>
+                    <div class="battery-coverage">${minimum.summer_coverage_pct}% summer coverage</div>
                     <ul class="battery-details">
-                        <li>Covers 70%+ of summer nights</li>
+                        <li>Covers 90% of summer nights</li>
+                        <li>Target: ${metrics.summer_night_p90} kWh/night</li>
                         <li>~${minimum.avg_daily_savings} kWh saved daily</li>
-                        <li>Good starting point</li>
                     </ul>
                 </div>
                 <div class="battery-card recommended">
-                    <div class="battery-card-title">Sweet Spot</div>
+                    <div class="battery-card-title">Best Value ⭐</div>
                     <div class="battery-size">${rec.sweet_spot_kwh}<span> kWh</span></div>
-                    <div class="battery-coverage">${sweetSpot.summer_coverage_pct || sweetSpot.night_coverage_pct}% summer coverage</div>
+                    <div class="battery-coverage">${sweetSpot.summer_coverage_pct}% summer coverage</div>
                     <ul class="battery-details">
-                        <li>Covers 100% of summer nights</li>
+                        <li>Covers 99% of summer nights</li>
+                        <li>Target: ${metrics.summer_night_p99} kWh/night</li>
                         <li>~${sweetSpot.avg_daily_savings} kWh saved daily</li>
-                        <li>Recommended for most users</li>
                     </ul>
                 </div>
                 <div class="battery-card">
-                    <div class="battery-card-title">Maximum</div>
+                    <div class="battery-card-title">Winter Ready</div>
                     <div class="battery-size">${rec.maximum_kwh}<span> kWh</span></div>
-                    <div class="battery-coverage">${maximum.winter_coverage_pct || maximum.night_coverage_pct}% winter coverage</div>
+                    <div class="battery-coverage">${maximum.winter_coverage_pct}% winter coverage</div>
                     <ul class="battery-details">
-                        <li>Covers 30%+ of winter nights</li>
+                        <li>Covers 90% of winter nights</li>
+                        <li>Target: ${metrics.winter_night_p90} kWh/night</li>
                         <li>~${maximum.avg_daily_savings} kWh saved daily</li>
-                        <li>Better year-round coverage</li>
                     </ul>
                 </div>
             `;

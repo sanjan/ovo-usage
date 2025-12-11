@@ -64,18 +64,19 @@ Data is recorded in **5-minute intervals**.
 
 ## Battery Recommendations
 
-The dashboard uses **seasonal coverage-based** recommendations:
+The dashboard uses **percentile-based** recommendations based on your actual usage:
 
 | Recommendation | Criteria |
 |----------------|----------|
-| **Minimum** | Covers ≥70% of summer nights |
-| **Sweet Spot** ⭐ | Covers 100% of summer nights |
-| **Maximum** | Covers ≥30% of winter nights |
+| **Entry Level** | Covers 90th percentile of summer nights |
+| **Best Value** ⭐ | Covers 99th percentile of summer nights |
+| **Winter Ready** | Covers 90th percentile of winter nights |
 
-This approach accounts for:
-- Higher consumption in winter (heating)
-- Lower solar generation in winter
-- 90% round-trip battery efficiency
+This approach:
+- Uses your actual night usage data (not arbitrary targets)
+- Accounts for 90% round-trip battery efficiency
+- Focuses on summer where solar works best
+- Is honest about winter - you'll still need grid power
 
 ## ROI Analysis
 

@@ -43,15 +43,16 @@ Don't over-engineer. Solve the problem at hand, not hypothetical future problems
 - Configurable via UI - users can enable/disable and set custom times
 
 ### Battery Sizing Logic
-Coverage-based recommendations:
-- **Minimum**: Battery that covers ≥70% of summer nights
-- **Sweet Spot**: Battery that covers 100% of summer nights
-- **Maximum**: Battery that covers ≥30% of winter nights
+Percentile-based recommendations:
+- **Entry Level**: Covers 90th percentile summer night usage
+- **Best Value**: Covers 99th percentile summer night usage
+- **Winter Ready**: Covers 90th percentile winter night usage
 
 This approach:
-- Accounts for seasonal usage patterns (higher winter consumption)
-- Uses 90% round-trip battery efficiency
-- Calculates seasonal coverage for each battery size
+- Uses actual usage data percentiles (not arbitrary coverage targets)
+- Accounts for 90% round-trip battery efficiency
+- Recognizes that summer is where batteries work best (more solar to store)
+- Pragmatic about winter - you'll still need grid power
 
 ### ROI Analysis
 - Users input their actual OVO rates (peak, off-peak, feed-in)
@@ -103,7 +104,7 @@ solar_dashboard/
 Key parameters in `calculate_battery_recommendation()`:
 - `battery_efficiency = 0.90` - Round-trip efficiency
 - `battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40]` - Available sizes
-- Coverage targets: 70% summer (min), 100% summer (sweet spot), 30% winter (max)
+- Percentile targets: summer 90th (entry), summer 99th (best value), winter 90th (winter ready)
 
 ### Adding New Location Features
 

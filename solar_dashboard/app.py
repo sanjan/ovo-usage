@@ -357,16 +357,26 @@ def calculate_battery_recommendation(consumption, exports):
     winter_exports = exports[exports['month'].isin(winter_months)]
     summer_exports = exports[exports['month'].isin(summer_months)]
     
-    winter_night_avg = (
+    # Daily night consumption by season
+    winter_daily_night = (
         winter_consumption[~winter_consumption['is_sunlight']]
-        .groupby('date')['ReadConsumption'].sum().mean()
-        if len(winter_consumption) > 0 else avg_night_consumption
+        .groupby('date')['ReadConsumption'].sum()
+        if len(winter_consumption) > 0 else pd.Series([avg_night_consumption])
     )
-    summer_night_avg = (
+    summer_daily_night = (
         summer_consumption[~summer_consumption['is_sunlight']]
-        .groupby('date')['ReadConsumption'].sum().mean()
-        if len(summer_consumption) > 0 else avg_night_consumption
+        .groupby('date')['ReadConsumption'].sum()
+        if len(summer_consumption) > 0 else pd.Series([avg_night_consumption])
     )
+    
+    winter_night_avg = winter_daily_night.mean() if len(winter_daily_night) > 0 else avg_night_consumption
+    summer_night_avg = summer_daily_night.mean() if len(summer_daily_night) > 0 else avg_night_consumption
+    
+    # Seasonal percentiles for battery sizing
+    summer_night_p90 = summer_daily_night.quantile(0.90) if len(summer_daily_night) > 0 else avg_night_consumption
+    summer_night_p99 = summer_daily_night.quantile(0.99) if len(summer_daily_night) > 0 else avg_night_consumption
+    winter_night_p90 = winter_daily_night.quantile(0.90) if len(winter_daily_night) > 0 else avg_night_consumption
+    
     winter_export_avg = (
         winter_exports.groupby('date')['ReadConsumption'].sum().mean()
         if len(winter_exports) > 0 else avg_daily_export
@@ -425,22 +435,22 @@ def calculate_battery_recommendation(consumption, exports):
     
     battery_analysis = [{'size_kwh': size, **calculate_savings(size)} for size in battery_sizes]
     
-    # Find batteries meeting coverage criteria:
-    # - Minimum: at least 70% summer coverage
-    # - Sweet Spot: at least 100% summer coverage  
-    # - Maximum: at least 30% winter coverage
+    # Percentile-based recommendations (accounting for 90% battery efficiency):
+    # - Minimum: covers 90th percentile summer night usage
+    # - Sweet Spot: covers 99th percentile summer night usage
+    # - Maximum: covers 90th percentile winter night usage
     
-    def find_battery_for_coverage(target_pct, season='summer'):
-        key = 'summer_coverage_pct' if season == 'summer' else 'winter_coverage_pct'
-        for analysis in battery_analysis:
-            if analysis[key] >= target_pct:
-                return analysis['size_kwh']
-        # If none meet target, return largest
-        return battery_sizes[-1]
+    def find_battery_for_usage(target_kwh):
+        """Find smallest battery size that covers the target usage."""
+        usable_needed = target_kwh / battery_efficiency  # Account for efficiency losses
+        for size in battery_sizes:
+            if size >= usable_needed:
+                return size
+        return battery_sizes[-1]  # Return largest if none sufficient
     
-    minimum_size = find_battery_for_coverage(70, 'summer')
-    sweet_spot_size = find_battery_for_coverage(100, 'summer')
-    maximum_size = find_battery_for_coverage(30, 'winter')
+    minimum_size = find_battery_for_usage(summer_night_p90)
+    sweet_spot_size = find_battery_for_usage(summer_night_p99)
+    maximum_size = find_battery_for_usage(winter_night_p90)
     
     # Marginal benefits (for chart)
     marginal_benefits = []
@@ -468,12 +478,16 @@ def calculate_battery_recommendation(consumption, exports):
             'summer_night_avg': round(summer_night_avg, 2),
             'winter_export_avg': round(winter_export_avg, 2),
             'summer_export_avg': round(summer_export_avg, 2),
+            # Seasonal percentiles for battery sizing
+            'summer_night_p90': round(summer_night_p90, 2),
+            'summer_night_p99': round(summer_night_p99, 2),
+            'winter_night_p90': round(winter_night_p90, 2),
         },
         'recommendations': {
-            # Coverage-based recommendations:
-            # - Minimum: 70% summer night coverage
-            # - Sweet Spot: 100% summer night coverage
-            # - Maximum: 30% winter night coverage
+            # Percentile-based recommendations:
+            # - Minimum: 90th percentile summer night usage
+            # - Sweet Spot: 99th percentile summer night usage  
+            # - Maximum: 90th percentile winter night usage
             'minimum_kwh': minimum_size,
             'sweet_spot_kwh': sweet_spot_size,
             'maximum_kwh': maximum_size,
