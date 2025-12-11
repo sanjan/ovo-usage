@@ -954,14 +954,19 @@
         <div id="dashboard" class="hidden">
             <div class="stats-grid">
                 <div class="stat-card sunlight">
-                    <div class="stat-label">☀️ Sunlight Usage</div>
+                    <div class="stat-label">☀️ Paid Sunlight Usage</div>
                     <div class="stat-value sunlight"><span id="stat-sunlight">--</span><span class="stat-unit">kWh</span></div>
-                    <div class="stat-detail"><span id="stat-sunlight-pct">--</span>% of total</div>
+                    <div class="stat-detail"><span id="stat-sunlight-pct">--</span>% of total (excl. free window)</div>
                 </div>
                 <div class="stat-card night">
                     <div class="stat-label">🌙 Night Usage</div>
                     <div class="stat-value night"><span id="stat-night">--</span><span class="stat-unit">kWh</span></div>
                     <div class="stat-detail"><span id="stat-night-pct">--</span>% of total</div>
+                </div>
+                <div class="stat-card" style="border-left-color: #a855f7;">
+                    <div class="stat-label">🆓 Free Window (11am-2pm)</div>
+                    <div class="stat-value" style="color: #a855f7;"><span id="stat-free-window">--</span><span class="stat-unit">kWh</span></div>
+                    <div class="stat-detail"><span id="stat-free-window-pct">--</span>% of total (FREE!)</div>
                 </div>
                 <div class="stat-card export">
                     <div class="stat-label">⚡ Solar Export</div>
@@ -1412,13 +1417,26 @@
         }
 
         function updateStats(stats) {
-            document.getElementById('stat-sunlight').textContent = stats.sunlight_consumption.toLocaleString();
+            // Show paid sunlight (excluding free window) or total sunlight if not available
+            const paidSunlight = stats.paid_sunlight_consumption !== undefined 
+                ? stats.paid_sunlight_consumption 
+                : stats.sunlight_consumption;
+            document.getElementById('stat-sunlight').textContent = paidSunlight.toLocaleString();
             document.getElementById('stat-night').textContent = stats.night_consumption.toLocaleString();
             document.getElementById('stat-export').textContent = stats.total_exports.toLocaleString();
             document.getElementById('stat-total').textContent = stats.total_consumption.toLocaleString();
             document.getElementById('stat-days').textContent = stats.num_days;
-            document.getElementById('stat-sunlight-pct').textContent = stats.sunlight_pct;
+            
+            // Calculate paid sunlight percentage
+            const paidSunlightPct = stats.total_consumption > 0 
+                ? ((paidSunlight / stats.total_consumption) * 100).toFixed(1) 
+                : 0;
+            document.getElementById('stat-sunlight-pct').textContent = paidSunlightPct;
             document.getElementById('stat-night-pct').textContent = stats.night_pct;
+            
+            // Free window stats
+            document.getElementById('stat-free-window').textContent = (stats.free_window_consumption || 0).toLocaleString();
+            document.getElementById('stat-free-window-pct').textContent = stats.free_window_pct || 0;
         }
 
         function renderTrendsChart(data, mode = 'rolling') {

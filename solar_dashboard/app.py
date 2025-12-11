@@ -158,6 +158,13 @@ def load_and_process_data(filepath: str, location: Location):
     consumption['is_sunlight'] = consumption['datetime'].isin(solar_generating_times)
     exports['is_sunlight'] = exports['datetime'].isin(solar_generating_times)
     
+    # Free power window (OVO: 11am-2pm) - grid usage during this time is free
+    # Mark these separately so they can be excluded from "usage to offset"
+    consumption['hour'] = consumption['datetime'].dt.hour
+    consumption['is_free_window'] = (consumption['hour'] >= 11) & (consumption['hour'] < 14)
+    exports['hour'] = exports['datetime'].dt.hour
+    exports['is_free_window'] = (exports['hour'] >= 11) & (exports['hour'] < 14)
+    
     result = {
         'consumption': consumption,
         'exports': exports,
@@ -270,9 +277,23 @@ def calculate_daylight_hours(consumption, exports, location: Location, start_dat
 
 def get_summary_stats(consumption, exports):
     """Calculate summary statistics."""
+    # Check if free window column exists (for backward compatibility)
+    has_free_window = 'is_free_window' in consumption.columns
+    
     sunlight_consumption = consumption[consumption['is_sunlight']]['ReadConsumption'].sum()
     night_consumption = consumption[~consumption['is_sunlight']]['ReadConsumption'].sum()
     total_consumption = consumption['ReadConsumption'].sum()
+    
+    # Free window usage (11am-2pm) - this is free electricity
+    if has_free_window:
+        free_window_consumption = consumption[consumption['is_free_window']]['ReadConsumption'].sum()
+        # Paid sunlight = sunlight usage outside free window
+        paid_sunlight_consumption = consumption[
+            consumption['is_sunlight'] & ~consumption['is_free_window']
+        ]['ReadConsumption'].sum()
+    else:
+        free_window_consumption = 0
+        paid_sunlight_consumption = sunlight_consumption
     
     sunlight_exports = exports[exports['is_sunlight']]['ReadConsumption'].sum()
     total_exports = exports['ReadConsumption'].sum()
@@ -283,13 +304,16 @@ def get_summary_stats(consumption, exports):
         'sunlight_consumption': round(sunlight_consumption, 2),
         'night_consumption': round(night_consumption, 2),
         'total_consumption': round(total_consumption, 2),
+        'free_window_consumption': round(free_window_consumption, 2),
+        'paid_sunlight_consumption': round(paid_sunlight_consumption, 2),
         'sunlight_exports': round(sunlight_exports, 2),
         'total_exports': round(total_exports, 2),
         'num_days': num_days,
         'avg_daily_consumption': round(total_consumption / num_days, 2),
         'avg_daily_export': round(total_exports / num_days, 2),
-        'sunlight_pct': round(100 * sunlight_consumption / total_consumption, 1),
-        'night_pct': round(100 * night_consumption / total_consumption, 1)
+        'sunlight_pct': round(100 * sunlight_consumption / total_consumption, 1) if total_consumption > 0 else 0,
+        'night_pct': round(100 * night_consumption / total_consumption, 1) if total_consumption > 0 else 0,
+        'free_window_pct': round(100 * free_window_consumption / total_consumption, 1) if total_consumption > 0 else 0
     }
 
 
@@ -400,14 +424,42 @@ def calculate_battery_recommendation(consumption, exports):
             'marginal_benefit': round(savings_increase / size_increase, 3) if size_increase > 0 else 0
         })
     
-    # Find sweet spot
+    # Find sweet spot - balance marginal benefit AND payback period
+    # Target: reasonable payback (< 8 years) with good marginal benefit
+    TARGET_PAYBACK_YEARS = 8
+    DEFAULT_BATTERY_COST_PER_KWH = 1000  # $/kWh for payback estimation
+    DEFAULT_SAVINGS_PER_KWH = 0.25  # $ saved per kWh shifted (rough estimate)
+    
     sweet_spot_idx = 0
-    for i, mb in enumerate(marginal_benefits):
-        if i > 0 and mb['marginal_benefit'] < marginal_benefits[i-1]['marginal_benefit'] * 0.5:
+    best_score = -1
+    
+    for i, analysis in enumerate(battery_analysis):
+        size = analysis['size_kwh']
+        daily_savings_kwh = analysis['avg_daily_savings']
+        
+        # Estimate payback (will be recalculated with actual rates in frontend)
+        annual_savings_kwh = daily_savings_kwh * 365
+        estimated_annual_savings_dollars = annual_savings_kwh * DEFAULT_SAVINGS_PER_KWH
+        estimated_cost = size * DEFAULT_BATTERY_COST_PER_KWH
+        estimated_payback = estimated_cost / estimated_annual_savings_dollars if estimated_annual_savings_dollars > 0 else 99
+        
+        # Score: prefer higher coverage with reasonable payback
+        coverage_score = analysis['night_coverage_pct'] / 100
+        payback_penalty = max(0, (estimated_payback - TARGET_PAYBACK_YEARS) / TARGET_PAYBACK_YEARS)
+        score = coverage_score - payback_penalty
+        
+        # Also check marginal benefit hasn't dropped too much
+        if i > 0:
+            mb = marginal_benefits[i-1]['marginal_benefit']
+            initial_mb = marginal_benefits[0]['marginal_benefit'] if marginal_benefits else 1
+            if mb < initial_mb * 0.3:  # Marginal benefit dropped to 30% of initial
+                score -= 0.2
+        
+        if score > best_score:
+            best_score = score
             sweet_spot_idx = i
-            break
-        sweet_spot_idx = i
-    sweet_spot_size = battery_sizes[min(sweet_spot_idx + 1, len(battery_sizes) - 1)]
+    
+    sweet_spot_size = battery_sizes[sweet_spot_idx]
     
     return {
         'metrics': {
