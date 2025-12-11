@@ -1,6 +1,6 @@
 # ☀️ OVO Energy Solar Dashboard
 
-A web dashboard for analyzing electricity usage data exported from [OVO Energy Australia](https://www.ovoenergy.com.au/). Visualize your consumption during sunlight vs night hours and get personalized home battery capacity recommendations.
+A web dashboard for analyzing electricity usage data exported from [OVO Energy Australia](https://www.ovoenergy.com.au/). Visualize your consumption during sunlight vs night hours and get personalized home battery capacity recommendations with ROI analysis.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
@@ -8,8 +8,12 @@ A web dashboard for analyzing electricity usage data exported from [OVO Energy A
 ## Features
 
 - 📊 **Interactive Charts** - Powered by Plotly.js with zoom, pan, and hover details
-- ☀️ **Sunlight Analysis** - Automatic sunrise/sunset calculation for your location
-- 🔋 **Battery Recommendations** - Data-driven sizing based on your actual usage patterns
+- ☀️ **Smart Sunlight Detection** - Uses actual solar generation data (not astronomical sunrise/sunset)
+- 🔋 **Battery Recommendations** - Coverage-based sizing for summer and winter
+- 💰 **ROI Analysis** - Calculate payback period with your actual OVO rates
+- 🆓 **Free Power Window** - Configure your free electricity period (e.g., 11am-2pm)
+- 📅 **Date Range Selection** - Analyze specific periods (auto-suggests 1-year range)
+- 🌡️ **Seasonal Analysis** - Compare winter vs summer patterns
 - 📍 **Australian Postcodes** - Full postcode database with coordinates
 
 ## Quick Start
@@ -56,15 +60,44 @@ This dashboard **only works with OVO Energy Australia export files**. The expect
 | `ReadDate` | Date (YYYY-MM-DD) | `2024-05-07` |
 | `ReadTime` | Time (HH:MM:SS) | `00:05:00` |
 
-**Sample data:**
-```csv
-AccountNumber,NMI,Register,ReadConsumption,SolarFlag,ReadUnit,ReadQuality,ReadDate,ReadTime
-30128980,63060932424,"001",0.12300,false,kWh,A,2024-05-07,00:00:00
-30128980,63060932424,"001",0.12100,false,kWh,A,2024-05-07,00:05:00
-30128980,63060932424,"002",1.23400,true,kWh,A,2024-05-07,12:00:00
-```
-
 Data is recorded in **5-minute intervals**.
+
+## Battery Recommendations
+
+The dashboard uses **seasonal coverage-based** recommendations:
+
+| Recommendation | Criteria |
+|----------------|----------|
+| **Minimum** | Covers ≥70% of summer nights |
+| **Sweet Spot** ⭐ | Covers 100% of summer nights |
+| **Maximum** | Covers ≥30% of winter nights |
+
+This approach accounts for:
+- Higher consumption in winter (heating)
+- Lower solar generation in winter
+- 90% round-trip battery efficiency
+
+## ROI Analysis
+
+Configure your actual OVO rates to calculate payback:
+
+| Input | Description |
+|-------|-------------|
+| **Peak Rate** | What you pay during peak hours (c/kWh) |
+| **Off-Peak Rate** | What you pay during off-peak (c/kWh) |
+| **Feed-in Tariff** | What OVO pays you for exports (c/kWh) |
+| **Battery Cost** | Installed cost per kWh ($/kWh) |
+
+Optional: **Free Power Window** - If your plan includes free electricity during certain hours (e.g., 11am-2pm), configure it to exclude from calculations.
+
+## Charts & Analysis
+
+- **7-Day Rolling Average / Daily Values** - Toggle between smoothed trends and raw data
+- **Hourly Usage Pattern** - See when you use power throughout the day
+- **Monthly Breakdown** - Track seasonal patterns
+- **Daylight vs Generation Hours** - Compare theoretical daylight to actual panel output
+- **Battery Size vs Coverage** - Visualize diminishing returns
+- **Cumulative Savings** - Project ROI over 10 years
 
 ## CLI Options
 
@@ -80,38 +113,13 @@ options:
   --debug               Run in debug mode
 ```
 
-**Examples:**
-```bash
-# Start with a CSV file
-solar-dashboard --file OVOEnergy-Elec-30128980-UsageData.csv
-
-# Start with file and location
-solar-dashboard --file energy_data.csv --postcode 3000
-
-# Custom port
-solar-dashboard --port 8080
-```
-
-## Battery Recommendations
-
-The dashboard analyzes your usage patterns to recommend optimal battery sizes:
-
-- **Minimum** - Covers your average nightly consumption
-- **Sweet Spot** - Best value based on diminishing returns analysis
-- **Maximum** - Covers 90th percentile nights for near-complete grid independence
-
-Factors considered:
-- Average and peak night consumption
-- Daily solar export amounts (what could be stored)
-- Seasonal variation
-- 90% round-trip battery efficiency
-
 ## Project Structure
 
 ```
 ovo-usage/
 ├── pyproject.toml          # Package configuration
 ├── README.md               # This file
+├── agents.md               # AI agent instructions
 ├── solar_dashboard/        # Main package
 │   ├── app.py              # Flask application
 │   ├── postcodes.py        # Australian postcode lookup
@@ -138,7 +146,7 @@ uv run ruff check .
 
 - **Backend**: Flask, Pandas, NumPy
 - **Frontend**: Vanilla JS, Plotly.js
-- **Sunrise/Sunset**: [Astral](https://github.com/sffjunkie/astral)
+- **Sunrise/Sunset**: [Astral](https://github.com/sffjunkie/astral) (for daylight hours chart)
 - **Postcodes**: [Matthew Proctor's Database](https://www.matthewproctor.com/australian_postcodes)
 
 ## License
