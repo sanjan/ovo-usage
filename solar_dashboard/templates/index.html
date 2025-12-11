@@ -1024,6 +1024,17 @@
                     </div>
                 </div>
 
+                <div class="chart-card full-width">
+                    <div class="chart-header">
+                        <div class="chart-title">🌅 Daylight vs Generation Hours</div>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot sunlight"></div>Theoretical Daylight</div>
+                            <div class="legend-item"><div class="legend-dot export"></div>Actual Generation</div>
+                        </div>
+                    </div>
+                    <div id="chart-daylight" class="chart-container"></div>
+                </div>
+
                 <div class="chart-row">
                     <div class="chart-card">
                         <div class="chart-header">
@@ -1376,6 +1387,7 @@
                 
                 renderHourlyChart(data.hourly);
                 renderMonthlyChart(data.monthly);
+                renderDaylightChart(data.daylight);
                 renderPieChart(data.stats);
                 renderDailyChart(data.daily);
                 renderBatteryMetrics(data.battery);
@@ -1469,6 +1481,55 @@
                 { x: monthly.months, y: monthly.export, name: 'Export', type: 'bar', marker: { color: colors.export } }
             ];
             Plotly.newPlot('chart-monthly', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, yaxis: { ...plotlyLayout.yaxis, title: 'kWh' } }, plotlyConfig);
+        }
+
+        function renderDaylightChart(daylight) {
+            const traces = [
+                { 
+                    x: daylight.months, 
+                    y: daylight.theoretical, 
+                    name: 'Theoretical Daylight', 
+                    type: 'scatter', 
+                    mode: 'lines+markers',
+                    line: { color: colors.sunlight, width: 2.5 },
+                    marker: { size: 8 },
+                    hovertemplate: '%{y:.1f} hours<extra>Daylight</extra>'
+                },
+                { 
+                    x: daylight.months, 
+                    y: daylight.actual, 
+                    name: 'Actual Generation', 
+                    type: 'scatter', 
+                    mode: 'lines+markers',
+                    line: { color: colors.export, width: 2.5 },
+                    marker: { size: 8 },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(52, 211, 153, 0.1)',
+                    hovertemplate: '%{y:.1f} hours<extra>Generation</extra>'
+                }
+            ];
+            
+            // Calculate efficiency percentage for annotation
+            const avgTheoretical = daylight.theoretical.reduce((a, b) => a + b, 0) / daylight.theoretical.length;
+            const avgActual = daylight.actual.reduce((a, b) => a + b, 0) / daylight.actual.length;
+            const efficiency = ((avgActual / avgTheoretical) * 100).toFixed(0);
+            
+            Plotly.newPlot('chart-daylight', traces, { 
+                ...plotlyLayout, 
+                showlegend: false,
+                xaxis: { ...plotlyLayout.xaxis, type: 'category' },
+                yaxis: { ...plotlyLayout.yaxis, title: 'Hours per Day' },
+                annotations: [{
+                    x: 0.98,
+                    y: 0.98,
+                    xref: 'paper',
+                    yref: 'paper',
+                    text: `Generation captures ${efficiency}% of daylight`,
+                    showarrow: false,
+                    font: { color: colors.export, size: 12 },
+                    xanchor: 'right'
+                }]
+            }, plotlyConfig);
         }
 
         function renderPieChart(stats) {

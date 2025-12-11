@@ -214,6 +214,60 @@ def suggest_date_range(solar_start, data_end):
     return suggested_start, suggested_end
 
 
+def calculate_daylight_hours(consumption, exports, location: Location, start_date, end_date):
+    """Calculate theoretical daylight hours (astral) vs actual generation hours per month."""
+    from datetime import timedelta
+    import pandas as pd
+    
+    # Get unique dates in the data
+    dates = sorted(set(consumption['date'].unique()) | set(exports['date'].unique()))
+    
+    monthly_data = {}
+    
+    for date in dates:
+        month_key = f"{date.year}-{date.month:02d}"
+        if month_key not in monthly_data:
+            monthly_data[month_key] = {
+                'theoretical_hours': [],
+                'actual_hours': [],
+                'days': 0
+            }
+        
+        # Calculate theoretical daylight hours using astral
+        try:
+            sunrise, sunset = get_sun_times(date, location)
+            theoretical_hours = (sunset - sunrise).total_seconds() / 3600
+        except Exception:
+            theoretical_hours = 12  # Default fallback
+        
+        # Calculate actual generation hours from data
+        # Count 5-minute intervals with export > 0.001 kWh, convert to hours
+        day_exports = exports[exports['date'] == date]
+        generating_intervals = len(day_exports[day_exports['ReadConsumption'] > 0.001])
+        actual_hours = generating_intervals * (5 / 60)  # 5-minute intervals to hours
+        
+        monthly_data[month_key]['theoretical_hours'].append(theoretical_hours)
+        monthly_data[month_key]['actual_hours'].append(actual_hours)
+        monthly_data[month_key]['days'] += 1
+    
+    # Calculate monthly averages
+    months = sorted(monthly_data.keys())
+    theoretical_avg = []
+    actual_avg = []
+    
+    for month in months:
+        data = monthly_data[month]
+        theoretical_avg.append(round(sum(data['theoretical_hours']) / len(data['theoretical_hours']), 2))
+        actual_avg.append(round(sum(data['actual_hours']) / len(data['actual_hours']), 2))
+    
+    return {
+        'months': months,
+        'theoretical': theoretical_avg,  # Avg daylight hours per day (from astral)
+        'actual': actual_avg,  # Avg generation hours per day (from data)
+        'location': location.display_name
+    }
+
+
 def get_summary_stats(consumption, exports):
     """Calculate summary statistics."""
     sunlight_consumption = consumption[consumption['is_sunlight']]['ReadConsumption'].sum()
@@ -569,6 +623,9 @@ def get_data():
         'export': rolling_export.round(2).tolist()
     }
     
+    # Daylight hours analysis: theoretical (astral) vs actual (generation)
+    daylight_data = calculate_daylight_hours(consumption, exports, location, analysis_start, analysis_end)
+    
     # Battery recommendations
     battery_rec = calculate_battery_recommendation(consumption, exports)
     
@@ -578,6 +635,7 @@ def get_data():
         'hourly': hourly_data,
         'monthly': monthly_data,
         'trends': trend_data,
+        'daylight': daylight_data,
         'battery': battery_rec
     })
 
