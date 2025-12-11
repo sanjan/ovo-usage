@@ -446,12 +446,20 @@ def calculate_battery_recommendation(consumption, exports):
     # - Maximum: covers 90th percentile winter night usage
     
     def find_battery_for_usage(target_kwh):
-        """Find smallest battery size that covers the target usage."""
+        """Find closest battery size to the target usage (pragmatic, not strict)."""
         usable_needed = target_kwh / battery_efficiency  # Account for efficiency losses
+        
+        # Find the closest battery size (not strictly >= target)
+        closest_size = battery_sizes[0]
+        closest_diff = abs(battery_sizes[0] - usable_needed)
+        
         for size in battery_sizes:
-            if size >= usable_needed:
-                return size
-        return battery_sizes[-1]  # Return largest if none sufficient
+            diff = abs(size - usable_needed)
+            if diff < closest_diff:
+                closest_diff = diff
+                closest_size = size
+        
+        return closest_size
     
     minimum_size = find_battery_for_usage(summer_night_p90)
     sweet_spot_size = find_battery_for_usage(summer_night_p99)
