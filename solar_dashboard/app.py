@@ -716,8 +716,9 @@ def get_data():
     # Daylight hours analysis: theoretical (astral) vs actual (generation)
     daylight_data = calculate_daylight_hours(consumption, exports, location, analysis_start, analysis_end)
     
-    # Battery recommendations
-    battery_rec = calculate_battery_recommendation(consumption, exports)
+    # Battery recommendations - use FULL dataset for stable recommendations
+    # (not affected by date range filter - needs all seasonal data)
+    battery_rec = calculate_battery_recommendation(data['consumption'], data['exports'])
     
     return jsonify({
         'stats': stats,
