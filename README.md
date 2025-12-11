@@ -1,6 +1,6 @@
-# ☀️ Solar Energy Dashboard
+# ☀️ OVO Energy Solar Dashboard
 
-An interactive web dashboard for analyzing solar energy usage patterns for Australian households. Visualize your electricity consumption during sunlight vs night hours and get personalized home battery capacity recommendations.
+A web dashboard for analyzing electricity usage data exported from [OVO Energy Australia](https://www.ovoenergy.com.au/). Visualize your consumption during sunlight vs night hours and get personalized home battery capacity recommendations.
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
@@ -11,91 +11,84 @@ An interactive web dashboard for analyzing solar energy usage patterns for Austr
 - ☀️ **Sunlight Analysis** - Automatic sunrise/sunset calculation for your location
 - 🔋 **Battery Recommendations** - Data-driven sizing based on your actual usage patterns
 - 📍 **Australian Postcodes** - Full postcode database with coordinates
-- 📁 **Easy Data Import** - Upload your OVO Energy CSV or use CLI
-
-## Screenshots
-
-*Dashboard showing energy usage patterns and battery recommendations*
 
 ## Quick Start
 
-### Using uv (Recommended)
-
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/solar-energy-dashboard.git
-cd solar-energy-dashboard
+git clone https://github.com/sanjan/ovo-usage.git
+cd ovo-usage
 
 # Install with uv
 uv sync
 
-# Run with a CSV file
-uv run solar-dashboard --file your_energy_data.csv --postcode 3000
+# Run with your OVO data file
+uv run solar-dashboard --file your_ovo_export.csv --postcode 3000
 
 # Or just start the server and upload via web interface
 uv run solar-dashboard
 ```
 
-### Using pip
+Then open http://127.0.0.1:5000 in your browser.
 
-```bash
-# Clone and install
-git clone https://github.com/yourusername/solar-energy-dashboard.git
-cd solar-energy-dashboard
-pip install -e .
+## Getting Your Data from OVO Energy
 
-# Run
-solar-dashboard --file your_energy_data.csv --postcode 3000
+1. Log in to your [OVO Energy account](https://my.ovoenergy.com.au/)
+2. Navigate to **Usage** → **Download Usage Data**
+3. Select your date range and download the CSV file
+4. The file will be named like `OVOEnergy-Elec-XXXXXXXX-UsageData-DD-MM-YYYY-XXXXXXXX.csv`
+
+## OVO Energy CSV Format
+
+This dashboard **only works with OVO Energy Australia export files**. The expected format:
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| `AccountNumber` | Your OVO account number | `30128980` |
+| `NMI` | National Metering Identifier | `63060932424` |
+| `Register` | `001` = grid consumption, `002` = solar export | `001` |
+| `ReadConsumption` | Energy in kWh | `0.123` |
+| `SolarFlag` | `true` for solar export readings | `false` |
+| `ReadUnit` | Unit of measurement | `kWh` |
+| `ReadQuality` | Data quality indicator | `A` |
+| `ReadDate` | Date (YYYY-MM-DD) | `2024-05-07` |
+| `ReadTime` | Time (HH:MM:SS) | `00:05:00` |
+
+**Sample data:**
+```csv
+AccountNumber,NMI,Register,ReadConsumption,SolarFlag,ReadUnit,ReadQuality,ReadDate,ReadTime
+30128980,63060932424,"001",0.12300,false,kWh,A,2024-05-07,00:00:00
+30128980,63060932424,"001",0.12100,false,kWh,A,2024-05-07,00:05:00
+30128980,63060932424,"002",1.23400,true,kWh,A,2024-05-07,12:00:00
 ```
 
-Then open http://127.0.0.1:5000 in your browser.
+Data is recorded in **5-minute intervals**.
 
 ## CLI Options
 
 ```
 usage: solar-dashboard [-h] [-f FILE] [-p POSTCODE] [--port PORT] [--host HOST] [--debug]
 
-Solar Energy Dashboard - Analyze your solar usage patterns
-
 options:
-  -h, --help            show this help message and exit
   -f FILE, --file FILE  Path to OVO Energy CSV file
   -p POSTCODE, --postcode POSTCODE
                         Australian postcode for location (e.g., 3000 for Melbourne)
   --port PORT           Port to run the server on (default: 5000)
   --host HOST           Host to bind to (default: 127.0.0.1)
   --debug               Run in debug mode
-
-Examples:
-  # Start with a CSV file
-  solar-dashboard --file energy_data.csv
-
-  # Start with file and location
-  solar-dashboard --file energy_data.csv --postcode 3000
-
-  # Just start the server (upload via web interface)
-  solar-dashboard
-
-  # Custom port
-  solar-dashboard --port 8080
 ```
 
-## Data Format
+**Examples:**
+```bash
+# Start with a CSV file
+solar-dashboard --file OVOEnergy-Elec-30128980-UsageData.csv
 
-The dashboard expects CSV files from OVO Energy with the following columns:
+# Start with file and location
+solar-dashboard --file energy_data.csv --postcode 3000
 
-| Column | Description |
-|--------|-------------|
-| `ReadDate` | Date of reading (YYYY-MM-DD) |
-| `ReadTime` | Time of reading (HH:MM:SS) |
-| `Register` | 1 = consumption, 2 = solar export |
-| `SolarFlag` | true/false for solar readings |
-| `ReadConsumption` | Energy in kWh |
-
-The dashboard automatically:
-- Detects when your solar system started exporting
-- Filters data to only analyze post-solar-installation usage
-- Calculates sunrise/sunset times for your location
+# Custom port
+solar-dashboard --port 8080
+```
 
 ## Battery Recommendations
 
@@ -103,33 +96,23 @@ The dashboard analyzes your usage patterns to recommend optimal battery sizes:
 
 - **Minimum** - Covers your average nightly consumption
 - **Sweet Spot** - Best value based on diminishing returns analysis
-- **Maximum** - Covers 90th percentile nights for near-complete independence
+- **Maximum** - Covers 90th percentile nights for near-complete grid independence
 
 Factors considered:
 - Average and peak night consumption
-- Daily solar export amounts
-- Seasonal variation (Melbourne winters vs summers)
+- Daily solar export amounts (what could be stored)
+- Seasonal variation
 - 90% round-trip battery efficiency
-
-## Location Data
-
-Australian postcode coordinates are sourced from [Matthew Proctor's Australian Postcodes database](https://www.matthewproctor.com/australian_postcodes), which provides:
-
-- 18,500+ postcode entries
-- Latitude/longitude for each location
-- State and locality information
 
 ## Project Structure
 
 ```
-solar-energy-dashboard/
-├── pyproject.toml          # Package configuration (uv/pip)
+ovo-usage/
+├── pyproject.toml          # Package configuration
 ├── README.md               # This file
-├── agents.md               # Instructions for AI agents
 ├── solar_dashboard/        # Main package
-│   ├── __init__.py
 │   ├── app.py              # Flask application
-│   ├── postcodes.py        # Postcode lookup
+│   ├── postcodes.py        # Australian postcode lookup
 │   └── templates/
 │       └── index.html      # Dashboard UI
 └── data/
@@ -156,23 +139,13 @@ uv run ruff check .
 - **Sunrise/Sunset**: [Astral](https://github.com/sffjunkie/astral)
 - **Postcodes**: [Matthew Proctor's Database](https://www.matthewproctor.com/australian_postcodes)
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License
 
 ## Acknowledgments
 
-- [Matthew Proctor](https://www.matthewproctor.com/australian_postcodes) for the Australian postcode database
-- [Astral](https://github.com/sffjunkie/astral) for sunrise/sunset calculations
-- [Plotly.js](https://plotly.com/javascript/) for interactive charts
-
+- [OVO Energy Australia](https://www.ovoenergy.com.au/) - Energy provider
+- [Matthew Proctor](https://www.matthewproctor.com/australian_postcodes) - Australian postcode database
+- [Astral](https://github.com/sffjunkie/astral) - Sunrise/sunset calculations
+- [Plotly.js](https://plotly.com/javascript/) - Interactive charts

@@ -1,7 +1,7 @@
 [project]
-name = "solar-energy-dashboard"
+name = "ovo-usage"
 version = "1.0.0"
-description = "Interactive solar energy usage analysis dashboard for Australian households"
+description = "Dashboard for analyzing OVO Energy Australia usage data with solar and battery recommendations"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -41,9 +41,9 @@ dev = [
 solar-dashboard = "solar_dashboard.app:main"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/solar-energy-dashboard"
-Repository = "https://github.com/yourusername/solar-energy-dashboard"
-Issues = "https://github.com/yourusername/solar-energy-dashboard/issues"
+Homepage = "https://github.com/sanjan/ovo-usage"
+Repository = "https://github.com/sanjan/ovo-usage"
+Issues = "https://github.com/sanjan/ovo-usage/issues"
 
 [build-system]
 requires = ["hatchling"]
