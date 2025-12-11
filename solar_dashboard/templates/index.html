@@ -1635,40 +1635,45 @@
         function renderBatteryOptions(battery) {
             const rec = battery.recommendations;
             const analysis = battery.battery_analysis;
-            const sweetSpotAnalysis = analysis.find(a => a.size_kwh === rec.sweet_spot_kwh) || analysis[2];
-            const minAnalysis = analysis.find(a => a.size_kwh === rec.nearest_minimum) || analysis[0];
-            const optimalAnalysis = analysis.find(a => a.size_kwh === rec.nearest_optimal) || analysis[3];
-
+            
+            // Pick sensible options: entry level, sweet spot, and larger option
+            const entryLevel = analysis[0]; // Smallest (5 kWh)
+            const sweetSpot = analysis.find(a => a.size_kwh === rec.sweet_spot_kwh) || analysis[2];
+            
+            // Find a "bigger" option - one step up from sweet spot, or the largest if sweet spot is already big
+            const sweetSpotIndex = analysis.findIndex(a => a.size_kwh === rec.sweet_spot_kwh);
+            const biggerIndex = Math.min(sweetSpotIndex + 2, analysis.length - 1);
+            const biggerOption = analysis[biggerIndex];
+            
             document.getElementById('battery-options').innerHTML = `
                 <div class="battery-card">
-                    <div class="battery-card-title">Minimum</div>
-                    <div class="battery-size">${rec.nearest_minimum}<span> kWh</span></div>
-                    <div class="battery-coverage">${minAnalysis?.night_coverage_pct || '--'}% night coverage</div>
+                    <div class="battery-card-title">Entry Level</div>
+                    <div class="battery-size">${entryLevel.size_kwh}<span> kWh</span></div>
+                    <div class="battery-coverage">${entryLevel.night_coverage_pct}% night coverage</div>
                     <ul class="battery-details">
-                        <li>Covers average night usage</li>
-                        <li>~${minAnalysis?.avg_daily_savings || '--'} kWh saved daily</li>
-                        <li>Entry-level option</li>
+                        <li>Lowest upfront cost</li>
+                        <li>~${entryLevel.avg_daily_savings} kWh saved daily</li>
+                        <li>Good starting point</li>
                     </ul>
                 </div>
                 <div class="battery-card recommended">
-                    <div class="battery-card-title">Sweet Spot</div>
+                    <div class="battery-card-title">Best Value</div>
                     <div class="battery-size">${rec.sweet_spot_kwh}<span> kWh</span></div>
-                    <div class="battery-coverage">${sweetSpotAnalysis?.night_coverage_pct || '--'}% night coverage</div>
+                    <div class="battery-coverage">${sweetSpot?.night_coverage_pct || '--'}% night coverage</div>
                     <ul class="battery-details">
-                        <li>Best value for money</li>
-                        <li>~${sweetSpotAnalysis?.avg_daily_savings || '--'} kWh saved daily</li>
-                        <li>Covers most usage scenarios</li>
-                        <li>Optimal export capture</li>
+                        <li>Best ROI / payback balance</li>
+                        <li>~${sweetSpot?.avg_daily_savings || '--'} kWh saved daily</li>
+                        <li>Recommended for most users</li>
                     </ul>
                 </div>
                 <div class="battery-card">
-                    <div class="battery-card-title">Maximum Self-Consumption</div>
-                    <div class="battery-size">${rec.nearest_optimal}<span> kWh</span></div>
-                    <div class="battery-coverage">${optimalAnalysis?.night_coverage_pct || '--'}% night coverage</div>
+                    <div class="battery-card-title">More Coverage</div>
+                    <div class="battery-size">${biggerOption.size_kwh}<span> kWh</span></div>
+                    <div class="battery-coverage">${biggerOption.night_coverage_pct}% night coverage</div>
                     <ul class="battery-details">
-                        <li>Covers 90th percentile nights</li>
-                        <li>~${optimalAnalysis?.avg_daily_savings || '--'} kWh saved daily</li>
-                        <li>Maximum grid independence</li>
+                        <li>Higher self-consumption</li>
+                        <li>~${biggerOption.avg_daily_savings} kWh saved daily</li>
+                        <li>Longer payback period</li>
                     </ul>
                 </div>
             `;
