@@ -931,16 +931,23 @@
 
                 <div class="rate-inputs">
                     <div class="rate-input-group">
-                        <label>Feed-in Tariff (what OVO pays you)</label>
+                        <label>Peak Rate</label>
                         <div class="rate-input-wrapper">
-                            <input type="number" class="rate-input" id="rate-feedin" value="7" min="0" max="50" step="0.1">
+                            <input type="number" class="rate-input" id="rate-peak" value="44" min="0" max="100" step="0.01">
                             <span class="rate-unit">c/kWh</span>
                         </div>
                     </div>
                     <div class="rate-input-group">
-                        <label>Usage Rate (what you pay OVO)</label>
+                        <label>Off-Peak Rate</label>
                         <div class="rate-input-wrapper">
-                            <input type="number" class="rate-input" id="rate-usage" value="30" min="0" max="100" step="0.1">
+                            <input type="number" class="rate-input" id="rate-offpeak" value="24.83" min="0" max="100" step="0.01">
+                            <span class="rate-unit">c/kWh</span>
+                        </div>
+                    </div>
+                    <div class="rate-input-group">
+                        <label>Solar Feed-in Tariff</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-feedin" value="3.3" min="0" max="50" step="0.1">
                             <span class="rate-unit">c/kWh</span>
                         </div>
                     </div>
@@ -952,6 +959,9 @@
                         </div>
                     </div>
                 </div>
+                <button class="analyze-btn" id="update-roi-btn" style="margin-top: 0; max-width: 300px;">
+                    💰 Update ROI Calculation
+                </button>
 
                 <div class="roi-table-container">
                     <table class="roi-table" id="roi-table">
@@ -1360,9 +1370,16 @@
 
         // ROI Analysis Functions
         function getRates() {
+            const peak = parseFloat(document.getElementById('rate-peak').value) / 100; // Convert c to $
+            const offpeak = parseFloat(document.getElementById('rate-offpeak').value) / 100;
+            const feedIn = parseFloat(document.getElementById('rate-feedin').value) / 100;
+            // Use weighted average: assume 60% peak, 40% off-peak for evening usage
+            const avgUsage = (peak * 0.6) + (offpeak * 0.4);
             return {
-                feedIn: parseFloat(document.getElementById('rate-feedin').value) / 100, // Convert c to $
-                usage: parseFloat(document.getElementById('rate-usage').value) / 100,
+                peak,
+                offpeak,
+                feedIn,
+                usage: avgUsage,
                 batteryCost: parseFloat(document.getElementById('rate-battery-cost').value)
             };
         }
@@ -1500,17 +1517,19 @@
             
             const tenYearReturn = (recommended.annual_savings * 10) - recommended.battery_cost;
             const tenYearROI = ((tenYearReturn / recommended.battery_cost) * 100).toFixed(0);
+            const savingsPerKwh = (rates.usage - rates.feedIn) * 100; // In cents
             
             document.getElementById('roi-insight').innerHTML = `
                 <h4>💡 Financial Summary</h4>
-                <p>With your rates (${(rates.feedIn * 100).toFixed(1)}c feed-in, ${(rates.usage * 100).toFixed(1)}c usage), a <strong>${recommended.size_kwh} kWh battery</strong> at ~$${recommended.battery_cost.toLocaleString()} would:</p>
+                <p>With your rates (${(rates.feedIn * 100).toFixed(1)}c feed-in, ${(rates.peak * 100).toFixed(1)}c peak, ${(rates.offpeak * 100).toFixed(1)}c off-peak), each kWh shifted from export to self-use saves <strong>${savingsPerKwh.toFixed(1)}c</strong>.</p>
+                <p style="margin-top: 0.75rem;">A <strong>${recommended.size_kwh} kWh battery</strong> at ~$${recommended.battery_cost.toLocaleString()} would:</p>
                 <ul style="margin: 0.75rem 0; padding-left: 1.5rem; color: var(--text-secondary);">
                     <li>Save <strong style="color: var(--accent-export);">$${recommended.annual_savings.toFixed(0)}/year</strong> on electricity</li>
                     <li>Pay for itself in <strong style="color: var(--accent-sun);">${recommended.payback_years.toFixed(1)} years</strong></li>
-                    <li>Generate <strong style="color: var(--accent-export);">$${tenYearReturn.toFixed(0)} profit</strong> over 10 years (${tenYearROI}% ROI)</li>
+                    <li>Generate <strong style="color: var(--accent-export);">$${tenYearReturn.toFixed(0)} net profit</strong> over 10 years (${tenYearROI}% ROI)</li>
                 </ul>
                 <p style="font-size: 0.85rem; margin-top: 0.75rem; opacity: 0.8;">
-                    💡 Tip: Adjust the rates above to match your actual OVO plan for accurate estimates.
+                    📊 Assumes 60% peak / 40% off-peak evening usage mix. Adjust rates above and click Update.
                 </p>
             `;
         }
@@ -1523,10 +1542,8 @@
             renderROIInsight(currentBatteryData);
         }
 
-        // Rate input event listeners
-        document.getElementById('rate-feedin').addEventListener('input', updateROIAnalysis);
-        document.getElementById('rate-usage').addEventListener('input', updateROIAnalysis);
-        document.getElementById('rate-battery-cost').addEventListener('input', updateROIAnalysis);
+        // ROI Update button
+        document.getElementById('update-roi-btn').addEventListener('click', updateROIAnalysis);
 
         // Auto-load if we already have data
         {% if has_data %}
