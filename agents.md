@@ -16,9 +16,13 @@ This file provides context and instructions for AI agents (like Claude, Cursor, 
 - **Recommended: At least 12 months of data** for accurate battery recommendations (captures seasonal variations)
 
 ### Sunlight Calculation
-- Uses the `astral` library to calculate sunrise/sunset for Australian locations
-- Times are based on the user's postcode coordinates
-- Melbourne default: -37.8136, 144.9631
+- **Data-driven approach**: Uses actual solar generation data, not astronomical sunrise/sunset
+- A timestamp is "sunlight" if solar export > 0.001 kWh at that time
+- More accurate than astronomical calculation because it accounts for:
+  - Panel orientation (east/west facing)
+  - Shading and obstructions
+  - Weather conditions
+  - Actual inverter behavior
 
 ### Battery Sizing Logic
 - Analyzes night consumption (outside sunlight hours)
@@ -41,8 +45,8 @@ solar_dashboard/
 
 | Function | Purpose |
 |----------|---------|
-| `load_and_process_data()` | Load CSV, calculate sunlight status for each reading |
-| `is_sunlight_hour()` | Check if datetime falls between sunrise/sunset |
+| `load_and_process_data()` | Load CSV, determine sunlight status from actual solar generation |
+| `filter_data_by_date_range()` | Filter data to user-selected analysis period |
 | `get_summary_stats()` | Aggregate consumption/export statistics |
 | `calculate_battery_recommendation()` | Analyze usage patterns, recommend battery sizes |
 
@@ -100,9 +104,8 @@ The postcode database (`data/australian_postcodes.csv`) is downloaded from [Matt
 ## Common Issues
 
 1. **No solar exports found**: Data doesn't have Register=2 with SolarFlag=True entries
-2. **Slow loading**: Large CSV + sunlight calculation for each row
-3. **Wrong timezone**: Sunrise/sunset uses state-based timezone mapping
-4. **Postcode not found**: Some LVR (Large Volume Receiver) postcodes lack coordinates
+2. **Slow loading**: Large CSV files (300k+ rows) take time to process
+3. **Postcode not found**: Some LVR (Large Volume Receiver) postcodes lack coordinates
 
 ## Style Guidelines
 
