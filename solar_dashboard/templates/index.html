@@ -642,6 +642,119 @@
 
         .hidden { display: none !important; }
 
+        /* Rate Inputs */
+        .rate-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .rate-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .rate-input-group label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .rate-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .rate-input {
+            flex: 1;
+            padding: 0.625rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            width: 100%;
+        }
+
+        .rate-input:focus {
+            border-color: var(--accent-sun);
+        }
+
+        .rate-unit {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        /* ROI Table */
+        .roi-table-container {
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        .roi-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .roi-table th,
+        .roi-table td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .roi-table th {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .roi-table tr:hover {
+            background: rgba(251, 191, 36, 0.05);
+        }
+
+        .roi-table tr.recommended {
+            background: rgba(52, 211, 153, 0.1);
+        }
+
+        .roi-table .highlight {
+            color: var(--accent-export);
+            font-weight: 500;
+        }
+
+        .roi-table .money {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .roi-table .years {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-sun);
+        }
+
+        .roi-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--accent-export);
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border-radius: 4px;
+            margin-left: 0.5rem;
+        }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-secondary); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -809,6 +922,68 @@
                 </div>
 
                 <div class="insight-box" id="battery-insight"></div>
+
+                <!-- ROI Analysis Section -->
+                <div class="section-header" style="margin-top: 3rem;">
+                    <h2>💰 Return on Investment Analysis</h2>
+                    <p>Estimate payback period based on your electricity rates</p>
+                </div>
+
+                <div class="rate-inputs">
+                    <div class="rate-input-group">
+                        <label>Feed-in Tariff (what OVO pays you)</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-feedin" value="7" min="0" max="50" step="0.1">
+                            <span class="rate-unit">c/kWh</span>
+                        </div>
+                    </div>
+                    <div class="rate-input-group">
+                        <label>Usage Rate (what you pay OVO)</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-usage" value="30" min="0" max="100" step="0.1">
+                            <span class="rate-unit">c/kWh</span>
+                        </div>
+                    </div>
+                    <div class="rate-input-group">
+                        <label>Battery Cost (installed)</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-battery-cost" value="1100" min="0" max="5000" step="50">
+                            <span class="rate-unit">$/kWh</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="roi-table-container">
+                    <table class="roi-table" id="roi-table">
+                        <thead>
+                            <tr>
+                                <th>Battery Size</th>
+                                <th>Est. Cost</th>
+                                <th>Daily Savings</th>
+                                <th>Annual Savings</th>
+                                <th>Payback Period</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roi-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">📉 Payback Timeline</div>
+                        </div>
+                        <div id="chart-payback" class="chart-container"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">💵 Cumulative Savings Over 10 Years</div>
+                        </div>
+                        <div id="chart-cumulative" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <div class="insight-box" id="roi-insight"></div>
             </div>
         </div>
 
@@ -824,6 +999,7 @@
         // State
         let hasFile = {{ 'true' if has_data else 'false' }};
         let currentLocation = {{ location | tojson }};
+        let currentBatteryData = null; // Store for ROI recalculations
 
         // Colors
         const colors = {
@@ -1017,6 +1193,13 @@
                 renderMarginalBenefitChart(data.battery);
                 renderSeasonalChart(data.battery);
                 renderBatteryInsight(data.battery);
+                
+                // ROI Analysis
+                currentBatteryData = data.battery;
+                renderROITable(data.battery);
+                renderPaybackChart(data.battery);
+                renderCumulativeSavingsChart(data.battery);
+                renderROIInsight(data.battery);
 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -1174,6 +1357,176 @@
                 <div class="progress-bar-container" style="margin-top: 1rem;"><div class="progress-bar green" style="width: ${sweetSpotAnalysis?.night_coverage_pct || 0}%">${sweetSpotAnalysis?.night_coverage_pct || 0}% night usage covered</div></div>
             `;
         }
+
+        // ROI Analysis Functions
+        function getRates() {
+            return {
+                feedIn: parseFloat(document.getElementById('rate-feedin').value) / 100, // Convert c to $
+                usage: parseFloat(document.getElementById('rate-usage').value) / 100,
+                batteryCost: parseFloat(document.getElementById('rate-battery-cost').value)
+            };
+        }
+
+        function calculateROI(battery) {
+            const rates = getRates();
+            const analysis = battery.battery_analysis;
+            const sweetSpotSize = battery.recommendations.sweet_spot_kwh;
+            
+            // Calculate ROI for each battery size
+            return analysis.map(a => {
+                const batteryCost = a.size_kwh * rates.batteryCost;
+                // Savings = kWh shifted from export to self-use × (usage rate - feed-in rate)
+                const dailySavingsDollars = a.avg_daily_savings * (rates.usage - rates.feedIn);
+                const annualSavings = dailySavingsDollars * 365;
+                const paybackYears = annualSavings > 0 ? batteryCost / annualSavings : Infinity;
+                
+                return {
+                    size_kwh: a.size_kwh,
+                    battery_cost: batteryCost,
+                    daily_savings_kwh: a.avg_daily_savings,
+                    daily_savings_dollars: dailySavingsDollars,
+                    annual_savings: annualSavings,
+                    payback_years: paybackYears,
+                    is_recommended: a.size_kwh === sweetSpotSize,
+                    night_coverage_pct: a.night_coverage_pct
+                };
+            });
+        }
+
+        function renderROITable(battery) {
+            const roiData = calculateROI(battery);
+            const tbody = document.getElementById('roi-table-body');
+            
+            tbody.innerHTML = roiData.map(r => `
+                <tr class="${r.is_recommended ? 'recommended' : ''}">
+                    <td>
+                        ${r.size_kwh} kWh
+                        ${r.is_recommended ? '<span class="roi-badge">RECOMMENDED</span>' : ''}
+                    </td>
+                    <td class="money">$${r.battery_cost.toLocaleString()}</td>
+                    <td class="money">$${r.daily_savings_dollars.toFixed(2)}</td>
+                    <td class="money highlight">$${r.annual_savings.toFixed(0)}</td>
+                    <td class="years">${r.payback_years < 100 ? r.payback_years.toFixed(1) + ' years' : 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPaybackChart(battery) {
+            const roiData = calculateROI(battery);
+            const sweetSpotSize = battery.recommendations.sweet_spot_kwh;
+            
+            const traces = [{
+                x: roiData.map(r => `${r.size_kwh} kWh`),
+                y: roiData.map(r => Math.min(r.payback_years, 25)),
+                type: 'bar',
+                marker: {
+                    color: roiData.map(r => r.is_recommended ? colors.export : 'rgba(52, 211, 153, 0.5)')
+                },
+                text: roiData.map(r => r.payback_years < 25 ? `${r.payback_years.toFixed(1)}y` : '>25y'),
+                textposition: 'outside',
+                textfont: { color: colors.text }
+            }];
+            
+            Plotly.newPlot('chart-payback', traces, {
+                ...plotlyLayout,
+                showlegend: false,
+                xaxis: { ...plotlyLayout.xaxis, type: 'category' },
+                yaxis: { ...plotlyLayout.yaxis, title: 'Years to Payback', range: [0, Math.min(Math.max(...roiData.map(r => r.payback_years)) * 1.2, 30)] },
+                annotations: [{
+                    x: `${sweetSpotSize} kWh`,
+                    y: roiData.find(r => r.is_recommended)?.payback_years || 0,
+                    text: '★ Best Value',
+                    showarrow: true,
+                    arrowhead: 2,
+                    arrowcolor: colors.export,
+                    font: { color: colors.export, size: 11 },
+                    ax: 0,
+                    ay: -40
+                }]
+            }, plotlyConfig);
+        }
+
+        function renderCumulativeSavingsChart(battery) {
+            const roiData = calculateROI(battery);
+            const years = Array.from({length: 11}, (_, i) => i); // 0-10 years
+            const sweetSpotSize = battery.recommendations.sweet_spot_kwh;
+            
+            // Select a few key battery sizes to show
+            const sizesToShow = [roiData[0], roiData.find(r => r.is_recommended), roiData[roiData.length - 1]].filter(Boolean);
+            const uniqueSizes = [...new Map(sizesToShow.map(r => [r.size_kwh, r])).values()];
+            
+            const traces = uniqueSizes.map((r, idx) => {
+                const cumulativeSavings = years.map(y => (r.annual_savings * y) - r.battery_cost);
+                return {
+                    x: years,
+                    y: cumulativeSavings,
+                    name: `${r.size_kwh} kWh`,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: { 
+                        width: r.is_recommended ? 3 : 2,
+                        dash: r.is_recommended ? 'solid' : 'dot'
+                    },
+                    marker: { size: r.is_recommended ? 8 : 6 }
+                };
+            });
+            
+            // Add break-even line
+            traces.push({
+                x: [0, 10],
+                y: [0, 0],
+                name: 'Break-even',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: colors.text, width: 1, dash: 'dash' },
+                showlegend: false
+            });
+            
+            Plotly.newPlot('chart-cumulative', traces, {
+                ...plotlyLayout,
+                showlegend: true,
+                legend: { x: 0, y: 1.15, orientation: 'h' },
+                xaxis: { ...plotlyLayout.xaxis, title: 'Years', dtick: 1 },
+                yaxis: { ...plotlyLayout.yaxis, title: 'Net Savings ($)', tickprefix: '$' }
+            }, plotlyConfig);
+        }
+
+        function renderROIInsight(battery) {
+            const roiData = calculateROI(battery);
+            const rates = getRates();
+            const recommended = roiData.find(r => r.is_recommended);
+            
+            if (!recommended) return;
+            
+            const tenYearReturn = (recommended.annual_savings * 10) - recommended.battery_cost;
+            const tenYearROI = ((tenYearReturn / recommended.battery_cost) * 100).toFixed(0);
+            
+            document.getElementById('roi-insight').innerHTML = `
+                <h4>💡 Financial Summary</h4>
+                <p>With your rates (${(rates.feedIn * 100).toFixed(1)}c feed-in, ${(rates.usage * 100).toFixed(1)}c usage), a <strong>${recommended.size_kwh} kWh battery</strong> at ~$${recommended.battery_cost.toLocaleString()} would:</p>
+                <ul style="margin: 0.75rem 0; padding-left: 1.5rem; color: var(--text-secondary);">
+                    <li>Save <strong style="color: var(--accent-export);">$${recommended.annual_savings.toFixed(0)}/year</strong> on electricity</li>
+                    <li>Pay for itself in <strong style="color: var(--accent-sun);">${recommended.payback_years.toFixed(1)} years</strong></li>
+                    <li>Generate <strong style="color: var(--accent-export);">$${tenYearReturn.toFixed(0)} profit</strong> over 10 years (${tenYearROI}% ROI)</li>
+                </ul>
+                <p style="font-size: 0.85rem; margin-top: 0.75rem; opacity: 0.8;">
+                    💡 Tip: Adjust the rates above to match your actual OVO plan for accurate estimates.
+                </p>
+            `;
+        }
+
+        function updateROIAnalysis() {
+            if (!currentBatteryData) return;
+            renderROITable(currentBatteryData);
+            renderPaybackChart(currentBatteryData);
+            renderCumulativeSavingsChart(currentBatteryData);
+            renderROIInsight(currentBatteryData);
+        }
+
+        // Rate input event listeners
+        document.getElementById('rate-feedin').addEventListener('input', updateROIAnalysis);
+        document.getElementById('rate-usage').addEventListener('input', updateROIAnalysis);
+        document.getElementById('rate-battery-cost').addEventListener('input', updateROIAnalysis);
 
         // Auto-load if we already have data
         {% if has_data %}
