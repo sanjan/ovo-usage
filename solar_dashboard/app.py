@@ -145,10 +145,18 @@ def load_and_process_data(filepath: str, location: Location):
     consumption = df_filtered[df_filtered['Register'] == 1].copy()
     exports = df_filtered[(df_filtered['Register'] == 2) & (df_filtered['SolarFlag'] == True)].copy()
     
-    # Calculate sunlight status
-    print(f"Calculating sunlight hours for {location.display_name}...")
-    consumption['is_sunlight'] = consumption['datetime'].apply(lambda dt: is_sunlight_hour(dt, location))
-    exports['is_sunlight'] = exports['datetime'].apply(lambda dt: is_sunlight_hour(dt, location))
+    # Determine sunlight hours based on actual solar generation (more accurate than astronomical)
+    # A timestamp is considered "sunlight" if there was any solar export at that time
+    print("Determining sunlight hours from actual solar generation data...")
+    
+    # Create a set of datetimes where solar was generating (export > 0.001 kWh threshold)
+    solar_generating_times = set(
+        exports[exports['ReadConsumption'] > 0.001]['datetime'].values
+    )
+    
+    # Mark consumption readings as sunlight/night based on actual solar generation
+    consumption['is_sunlight'] = consumption['datetime'].isin(solar_generating_times)
+    exports['is_sunlight'] = exports['datetime'].isin(solar_generating_times)
     
     result = {
         'consumption': consumption,
