@@ -379,41 +379,70 @@ def calculate_battery_recommendation(consumption, exports):
     # Battery efficiency
     battery_efficiency = 0.90
     
-    # Sizing recommendations
-    min_battery = avg_night_consumption / battery_efficiency
-    usable_export = min(avg_daily_export, p75_night_consumption)
-    recommended_battery = max(usable_export, median_night_consumption) / battery_efficiency
-    optimal_battery = min(p90_night_consumption, p75_daily_export) / battery_efficiency
-    large_battery = p90_night_consumption / battery_efficiency
-    
     # Common battery sizes (including larger options for high-usage households)
     battery_sizes = [5, 7, 10, 13.5, 15, 20, 25, 30, 40]
-    
-    def find_nearest_size(target):
-        return min(battery_sizes, key=lambda x: abs(x - target))
     
     def calculate_savings(battery_kwh):
         usable_capacity = battery_kwh * battery_efficiency
         savings_per_day = []
+        summer_savings = []
+        winter_savings = []
+        summer_nights = []
+        winter_nights = []
+        
         for date in all_dates:
             export_available = daily_export.get(date, 0)
             night_usage = daily_night.get(date, 0)
             stored = min(export_available, usable_capacity)
             offset = min(stored, night_usage)
             savings_per_day.append(offset)
+            
+            # Track seasonal separately
+            month = date.month
+            if month in summer_months:
+                summer_savings.append(offset)
+                summer_nights.append(night_usage)
+            elif month in winter_months:
+                winter_savings.append(offset)
+                winter_nights.append(night_usage)
         
         total_savings = sum(savings_per_day)
         coverage_pct = (total_savings / daily_night.sum()) * 100 if daily_night.sum() > 0 else 0
         
+        # Seasonal coverage percentages
+        summer_total_nights = sum(summer_nights) if summer_nights else 1
+        winter_total_nights = sum(winter_nights) if winter_nights else 1
+        summer_coverage = (sum(summer_savings) / summer_total_nights) * 100 if summer_total_nights > 0 else 0
+        winter_coverage = (sum(winter_savings) / winter_total_nights) * 100 if winter_total_nights > 0 else 0
+        
         return {
             'total_kwh_saved': round(total_savings, 1),
             'avg_daily_savings': round(np.mean(savings_per_day), 2),
-            'night_coverage_pct': round(coverage_pct, 1)
+            'night_coverage_pct': round(coverage_pct, 1),
+            'summer_coverage_pct': round(summer_coverage, 1),
+            'winter_coverage_pct': round(winter_coverage, 1)
         }
     
     battery_analysis = [{'size_kwh': size, **calculate_savings(size)} for size in battery_sizes]
     
-    # Marginal benefits
+    # Find batteries meeting coverage criteria:
+    # - Minimum: at least 70% summer coverage
+    # - Sweet Spot: at least 100% summer coverage  
+    # - Maximum: at least 30% winter coverage
+    
+    def find_battery_for_coverage(target_pct, season='summer'):
+        key = 'summer_coverage_pct' if season == 'summer' else 'winter_coverage_pct'
+        for analysis in battery_analysis:
+            if analysis[key] >= target_pct:
+                return analysis['size_kwh']
+        # If none meet target, return largest
+        return battery_sizes[-1]
+    
+    minimum_size = find_battery_for_coverage(70, 'summer')
+    sweet_spot_size = find_battery_for_coverage(100, 'summer')
+    maximum_size = find_battery_for_coverage(30, 'winter')
+    
+    # Marginal benefits (for chart)
     marginal_benefits = []
     for i in range(1, len(battery_analysis)):
         prev, curr = battery_analysis[i-1], battery_analysis[i]
@@ -424,43 +453,6 @@ def calculate_battery_recommendation(consumption, exports):
             'to_size': curr['size_kwh'],
             'marginal_benefit': round(savings_increase / size_increase, 3) if size_increase > 0 else 0
         })
-    
-    # Find sweet spot - balance marginal benefit AND payback period
-    # Target: reasonable payback (< 8 years) with good marginal benefit
-    TARGET_PAYBACK_YEARS = 8
-    DEFAULT_BATTERY_COST_PER_KWH = 1000  # $/kWh for payback estimation
-    DEFAULT_SAVINGS_PER_KWH = 0.25  # $ saved per kWh shifted (rough estimate)
-    
-    sweet_spot_idx = 0
-    best_score = -1
-    
-    for i, analysis in enumerate(battery_analysis):
-        size = analysis['size_kwh']
-        daily_savings_kwh = analysis['avg_daily_savings']
-        
-        # Estimate payback (will be recalculated with actual rates in frontend)
-        annual_savings_kwh = daily_savings_kwh * 365
-        estimated_annual_savings_dollars = annual_savings_kwh * DEFAULT_SAVINGS_PER_KWH
-        estimated_cost = size * DEFAULT_BATTERY_COST_PER_KWH
-        estimated_payback = estimated_cost / estimated_annual_savings_dollars if estimated_annual_savings_dollars > 0 else 99
-        
-        # Score: prefer higher coverage with reasonable payback
-        coverage_score = analysis['night_coverage_pct'] / 100
-        payback_penalty = max(0, (estimated_payback - TARGET_PAYBACK_YEARS) / TARGET_PAYBACK_YEARS)
-        score = coverage_score - payback_penalty
-        
-        # Also check marginal benefit hasn't dropped too much
-        if i > 0:
-            mb = marginal_benefits[i-1]['marginal_benefit']
-            initial_mb = marginal_benefits[0]['marginal_benefit'] if marginal_benefits else 1
-            if mb < initial_mb * 0.3:  # Marginal benefit dropped to 30% of initial
-                score -= 0.2
-        
-        if score > best_score:
-            best_score = score
-            sweet_spot_idx = i
-    
-    sweet_spot_size = battery_sizes[sweet_spot_idx]
     
     return {
         'metrics': {
@@ -478,14 +470,13 @@ def calculate_battery_recommendation(consumption, exports):
             'summer_export_avg': round(summer_export_avg, 2),
         },
         'recommendations': {
-            'minimum_kwh': round(min_battery, 1),
-            'recommended_kwh': round(recommended_battery, 1),
-            'optimal_kwh': round(optimal_battery, 1),
-            'maximum_kwh': round(large_battery, 1),
+            # Coverage-based recommendations:
+            # - Minimum: 70% summer night coverage
+            # - Sweet Spot: 100% summer night coverage
+            # - Maximum: 30% winter night coverage
+            'minimum_kwh': minimum_size,
             'sweet_spot_kwh': sweet_spot_size,
-            'nearest_minimum': find_nearest_size(min_battery),
-            'nearest_recommended': find_nearest_size(recommended_battery),
-            'nearest_optimal': find_nearest_size(optimal_battery),
+            'maximum_kwh': maximum_size,
         },
         'battery_analysis': battery_analysis,
         'marginal_benefits': marginal_benefits,
