@@ -349,8 +349,9 @@ def calculate_battery_recommendation(consumption, exports):
     consumption['month'] = consumption['datetime'].dt.month
     exports['month'] = exports['datetime'].dt.month
     
-    winter_months = [5, 6, 7, 8]
-    summer_months = [11, 12, 1, 2]
+    # Australian seasons (meteorological)
+    winter_months = [6, 7, 8]      # Jun, Jul, Aug
+    summer_months = [12, 1, 2]     # Dec, Jan, Feb
     
     winter_consumption = consumption[consumption['month'].isin(winter_months)]
     summer_consumption = consumption[consumption['month'].isin(summer_months)]
