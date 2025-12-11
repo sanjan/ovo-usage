@@ -1239,14 +1239,15 @@
             font: { family: 'DM Sans, sans-serif', color: colors.text },
             margin: { t: 20, r: 20, b: 50, l: 60 },
             xaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, tickfont: { size: 11 } },
-            yaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, tickfont: { size: 11 } },
-            hoverlabel: { bgcolor: colors.bg, bordercolor: colors.grid, font: { family: 'DM Sans, sans-serif' } }
+            yaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, tickfont: { size: 11 }, fixedrange: true },
+            hoverlabel: { bgcolor: colors.bg, bordercolor: colors.grid, font: { family: 'DM Sans, sans-serif' } },
+            dragmode: 'zoom'  // Horizontal zoom only (y-axis is fixed)
         };
 
         const plotlyConfig = {
             responsive: true,
             displayModeBar: true,
-            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            modeBarButtonsToRemove: ['lasso2d', 'select2d', 'zoom2d'],  // Remove box zoom button
             displaylogo: false
         };
 
@@ -1700,7 +1701,8 @@
                     side: 'right',
                     showgrid: false,
                     color: '#a855f7',
-                    range: [0, sim.usableCapacity * 1.1]
+                    range: [0, sim.usableCapacity * 1.1],
+                    fixedrange: true
                 },
                 hovermode: 'x unified'
             }, plotlyConfig);
