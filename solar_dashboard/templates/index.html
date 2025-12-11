@@ -1251,6 +1251,47 @@
             displaylogo: false
         };
 
+        // Sync zoom across time-series charts
+        const syncedCharts = ['chart-trends', 'chart-battery-sim'];
+        let isSyncing = false;  // Prevent infinite loop
+        
+        function setupChartSync(chartId) {
+            const chartDiv = document.getElementById(chartId);
+            if (!chartDiv) return;
+            
+            chartDiv.on('plotly_relayout', function(eventData) {
+                if (isSyncing) return;  // Skip if we're already syncing
+                
+                // Check if this is a zoom event (has xaxis range)
+                const xRange = eventData['xaxis.range[0]'] !== undefined ? 
+                    [eventData['xaxis.range[0]'], eventData['xaxis.range[1]']] : 
+                    eventData['xaxis.range'];
+                
+                const isAutoRange = eventData['xaxis.autorange'];
+                
+                if (xRange || isAutoRange) {
+                    isSyncing = true;
+                    
+                    // Apply same range to all other synced charts
+                    syncedCharts.forEach(otherId => {
+                        if (otherId !== chartId) {
+                            const otherDiv = document.getElementById(otherId);
+                            if (otherDiv && otherDiv.data) {
+                                if (isAutoRange) {
+                                    Plotly.relayout(otherId, { 'xaxis.autorange': true });
+                                } else if (xRange) {
+                                    Plotly.relayout(otherId, { 'xaxis.range': xRange });
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Small delay before allowing next sync
+                    setTimeout(() => { isSyncing = false; }, 100);
+                }
+            });
+        }
+
         // File Upload
         const fileUploadArea = document.getElementById('file-upload-area');
         const fileInput = document.getElementById('file-input');
@@ -1567,6 +1608,9 @@
                 yaxis: { ...plotlyLayout.yaxis, title: yAxisTitle }, 
                 hovermode: 'x unified' 
             }, plotlyConfig);
+            
+            // Setup zoom sync with other time-series charts
+            setupChartSync('chart-trends');
         }
 
         // Store daily data globally for battery simulation
@@ -1706,6 +1750,9 @@
                 },
                 hovermode: 'x unified'
             }, plotlyConfig);
+            
+            // Setup zoom sync with other time-series charts
+            setupChartSync('chart-battery-sim');
             
             // Calculate stats
             const totalOriginalNight = sim.originalNight.reduce((a, b) => a + b, 0);
