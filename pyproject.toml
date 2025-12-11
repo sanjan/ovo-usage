@@ -1,0 +1,62 @@
+[project]
+name = "solar-energy-dashboard"
+version = "1.0.0"
+description = "Interactive solar energy usage analysis dashboard for Australian households"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+keywords = ["solar", "energy", "dashboard", "australia", "battery", "analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Framework :: Flask",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
+dependencies = [
+    "flask>=3.0.0",
+    "pandas>=2.0.0",
+    "astral>=3.2",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+solar-dashboard = "solar_dashboard.app:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/solar-energy-dashboard"
+Repository = "https://github.com/yourusername/solar-energy-dashboard"
+Issues = "https://github.com/yourusername/solar-energy-dashboard/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["solar_dashboard"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+

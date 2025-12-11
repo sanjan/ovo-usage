@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Energy Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-sun: #fbbf24;
+            --accent-sun-glow: rgba(251, 191, 36, 0.2);
+            --accent-night: #60a5fa;
+            --accent-export: #34d399;
+            --accent-consumption: #f87171;
+            --gradient-sun: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            --gradient-night: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            --gradient-export: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(251, 191, 36, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(52, 211, 153, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(96, 165, 250, 0.04) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem 0;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .logo-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--gradient-sun);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            box-shadow: 0 0 40px var(--accent-sun-glow);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Setup Panel */
+        .setup-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .setup-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .setup-grid { grid-template-columns: 1fr; }
+        }
+
+        .setup-section h3 {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload-area:hover, .file-upload-area.dragover {
+            border-color: var(--accent-sun);
+            background: rgba(251, 191, 36, 0.05);
+        }
+
+        .file-upload-area.has-file {
+            border-color: var(--accent-export);
+            background: rgba(52, 211, 153, 0.05);
+        }
+
+        .file-upload-area input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .file-upload-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .file-name {
+            color: var(--accent-export);
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+
+        /* Location Search */
+        .location-search {
+            position: relative;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            padding-left: 2.5rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-sun);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.875rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-top: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .search-results.visible {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item:hover {
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .search-result-locality {
+            font-weight: 500;
+        }
+
+        .search-result-details {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .current-location {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .current-location .label {
+            color: var(--text-secondary);
+        }
+
+        .current-location .value {
+            color: var(--accent-export);
+            font-weight: 500;
+        }
+
+        /* Analyze Button */
+        .analyze-btn {
+            display: block;
+            width: 100%;
+            padding: 1rem 2rem;
+            margin-top: 1.5rem;
+            background: var(--gradient-sun);
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--accent-sun-glow);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card.sunlight { border-left: 3px solid var(--accent-sun); }
+        .stat-card.night { border-left: 3px solid var(--accent-night); }
+        .stat-card.export { border-left: 3px solid var(--accent-export); }
+        .stat-card.total { border-left: 3px solid var(--accent-consumption); }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 500;
+        }
+
+        .stat-value.sunlight { color: var(--accent-sun); }
+        .stat-value.night { color: var(--accent-night); }
+        .stat-value.export { color: var(--accent-export); }
+        .stat-value.total { color: var(--accent-consumption); }
+
+        .stat-unit {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .stat-detail {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        /* Charts */
+        .charts-section {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1200px) {
+            .chart-row { grid-template-columns: 1fr; }
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            overflow: hidden;
+        }
+
+        .chart-card.full-width { grid-column: 1 / -1; }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chart-container { width: 100%; height: 350px; }
+        .chart-container.tall { height: 450px; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .legend-dot.sunlight { background: var(--accent-sun); }
+        .legend-dot.night { background: var(--accent-night); }
+        .legend-dot.export { background: var(--accent-export); }
+
+        /* Battery Section */
+        .battery-section {
+            margin-top: 3rem;
+            padding-top: 3rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .battery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .battery-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.75rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .battery-card.recommended {
+            border-color: var(--accent-export);
+            box-shadow: 0 0 30px rgba(52, 211, 153, 0.15);
+        }
+
+        .battery-card.recommended::before {
+            content: '★ RECOMMENDED';
+            position: absolute;
+            top: 0; right: 0;
+            background: var(--accent-export);
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.35rem 0.75rem;
+            border-radius: 0 16px 0 8px;
+        }
+
+        .battery-card-title {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .battery-size {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .battery-size span {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+        }
+
+        .battery-coverage {
+            font-size: 0.95rem;
+            color: var(--accent-export);
+            margin-bottom: 1rem;
+        }
+
+        .battery-details {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .battery-details li {
+            margin-bottom: 0.35rem;
+            list-style: none;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .battery-details li::before {
+            content: '→';
+            color: var(--accent-export);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            color: var(--text-primary);
+        }
+
+        .metric-value.highlight-sun { color: var(--accent-sun); }
+        .metric-value.highlight-night { color: var(--accent-night); }
+        .metric-value.highlight-export { color: var(--accent-export); }
+
+        .insight-box {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(52, 211, 153, 0.05) 100%);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .insight-box h4 {
+            color: var(--accent-export);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .insight-box p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .progress-bar-container {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            height: 24px;
+            overflow: hidden;
+            margin-top: 0.75rem;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #000;
+            transition: width 0.5s ease;
+        }
+
+        .progress-bar.green { background: var(--accent-export); }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            gap: 1.5rem;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-sun);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text { color: var(--text-secondary); font-size: 1.1rem; }
+        .loading-subtext { color: var(--text-secondary); font-size: 0.875rem; opacity: 0.7; }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        footer a {
+            color: var(--accent-sun);
+            text-decoration: none;
+        }
+
+        .hidden { display: none !important; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">☀️</div>
+                <h1>Solar Energy Dashboard</h1>
+            </div>
+            <p class="subtitle">Analyze your solar usage patterns & get battery recommendations</p>
+        </header>
+
+        <!-- Setup Panel -->
+        <div class="setup-panel" id="setup-panel">
+            <div class="setup-grid">
+                <div class="setup-section">
+                    <h3>📁 Energy Data</h3>
+                    <div class="file-upload-area" id="file-upload-area">
+                        <input type="file" id="file-input" accept=".csv">
+                        <div class="file-upload-icon">📊</div>
+                        <div class="file-upload-text">
+                            Drop your OVO Energy CSV here or click to browse
+                        </div>
+                        <div class="file-name" id="file-name"></div>
+                    </div>
+                </div>
+
+                <div class="setup-section">
+                    <h3>📍 Your Location</h3>
+                    <div class="location-search">
+                        <div class="search-input-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" 
+                                   class="search-input" 
+                                   id="location-search" 
+                                   placeholder="Search by postcode or suburb..."
+                                   autocomplete="off">
+                        </div>
+                        <div class="search-results" id="search-results"></div>
+                    </div>
+                    <div class="current-location">
+                        <span class="label">Current:</span>
+                        <span class="value" id="current-location">{{ location.display_name }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <button class="analyze-btn" id="analyze-btn" {% if not has_data %}disabled{% endif %}>
+                🔍 Analyze Energy Data
+            </button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading hidden" id="loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Analyzing your energy data...</div>
+            <div class="loading-subtext">Calculating sunlight hours for <span id="loading-location">your location</span></div>
+        </div>
+
+        <!-- Dashboard Content (hidden until data is loaded) -->
+        <div id="dashboard" class="hidden">
+            <div class="stats-grid">
+                <div class="stat-card sunlight">
+                    <div class="stat-label">☀️ Sunlight Usage</div>
+                    <div class="stat-value sunlight"><span id="stat-sunlight">--</span><span class="stat-unit">kWh</span></div>
+                    <div class="stat-detail"><span id="stat-sunlight-pct">--</span>% of total</div>
+                </div>
+                <div class="stat-card night">
+                    <div class="stat-label">🌙 Night Usage</div>
+                    <div class="stat-value night"><span id="stat-night">--</span><span class="stat-unit">kWh</span></div>
+                    <div class="stat-detail"><span id="stat-night-pct">--</span>% of total</div>
+                </div>
+                <div class="stat-card export">
+                    <div class="stat-label">⚡ Solar Export</div>
+                    <div class="stat-value export"><span id="stat-export">--</span><span class="stat-unit">kWh</span></div>
+                    <div class="stat-detail">Sent to grid</div>
+                </div>
+                <div class="stat-card total">
+                    <div class="stat-label">📊 Total Consumption</div>
+                    <div class="stat-value total"><span id="stat-total">--</span><span class="stat-unit">kWh</span></div>
+                    <div class="stat-detail">Over <span id="stat-days">--</span> days</div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <div class="chart-card full-width">
+                    <div class="chart-header">
+                        <div class="chart-title">📈 7-Day Rolling Average Trends</div>
+                        <div class="legend">
+                            <div class="legend-item"><div class="legend-dot sunlight"></div>Sunlight Usage</div>
+                            <div class="legend-item"><div class="legend-dot night"></div>Night Usage</div>
+                            <div class="legend-item"><div class="legend-dot export"></div>Solar Export</div>
+                        </div>
+                    </div>
+                    <div id="chart-trends" class="chart-container tall"></div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">⏰ Hourly Usage Pattern</div>
+                        </div>
+                        <div id="chart-hourly" class="chart-container"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">📅 Monthly Breakdown</div>
+                        </div>
+                        <div id="chart-monthly" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">🥧 Usage Distribution</div>
+                        </div>
+                        <div id="chart-pie" class="chart-container"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">📊 Daily Stacked View</div>
+                        </div>
+                        <div id="chart-daily" class="chart-container"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Battery Recommendation Section -->
+            <div class="battery-section">
+                <div class="section-header">
+                    <h2>🔋 Battery Capacity Recommendation</h2>
+                    <p>Based on your actual usage patterns and solar export data</p>
+                </div>
+
+                <div class="metrics-grid" id="battery-metrics"></div>
+                <div class="battery-grid" id="battery-options"></div>
+
+                <div class="chart-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">📊 Battery Size vs Night Coverage</div>
+                        </div>
+                        <div id="chart-battery-savings" class="chart-container"></div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">📈 Diminishing Returns Analysis</div>
+                        </div>
+                        <div id="chart-marginal" class="chart-container"></div>
+                    </div>
+                </div>
+
+                <div class="chart-card full-width">
+                    <div class="chart-header">
+                        <div class="chart-title">🌡️ Seasonal Analysis</div>
+                    </div>
+                    <div id="chart-seasonal" class="chart-container"></div>
+                </div>
+
+                <div class="insight-box" id="battery-insight"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                Sunrise/sunset data calculated using <a href="https://github.com/sffjunkie/astral" target="_blank">Astral</a> • 
+                Postcode data from <a href="https://www.matthewproctor.com/australian_postcodes" target="_blank">Matthew Proctor</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // State
+        let hasFile = {{ 'true' if has_data else 'false' }};
+        let currentLocation = {{ location | tojson }};
+
+        // Colors
+        const colors = {
+            sunlight: '#fbbf24',
+            night: '#60a5fa',
+            export: '#34d399',
+            consumption: '#f87171',
+            grid: '#30363d',
+            text: '#8b949e',
+            bg: '#161b22'
+        };
+
+        const plotlyLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { family: 'DM Sans, sans-serif', color: colors.text },
+            margin: { t: 20, r: 20, b: 50, l: 60 },
+            xaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, tickfont: { size: 11 } },
+            yaxis: { gridcolor: colors.grid, zerolinecolor: colors.grid, tickfont: { size: 11 } },
+            hoverlabel: { bgcolor: colors.bg, bordercolor: colors.grid, font: { family: 'DM Sans, sans-serif' } }
+        };
+
+        const plotlyConfig = {
+            responsive: true,
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+            displaylogo: false
+        };
+
+        // File Upload
+        const fileUploadArea = document.getElementById('file-upload-area');
+        const fileInput = document.getElementById('file-input');
+        const fileName = document.getElementById('file-name');
+        const analyzeBtn = document.getElementById('analyze-btn');
+
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('dragover');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        async function handleFileSelect(file) {
+            if (!file.name.endsWith('.csv')) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    hasFile = true;
+                    fileName.textContent = `✓ ${result.filename}`;
+                    fileUploadArea.classList.add('has-file');
+                    analyzeBtn.disabled = false;
+                } else {
+                    alert('Error uploading file: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error uploading file: ' + error.message);
+            }
+        }
+
+        // Location Search
+        const locationSearch = document.getElementById('location-search');
+        const searchResults = document.getElementById('search-results');
+        const currentLocationEl = document.getElementById('current-location');
+        let searchTimeout;
+
+        locationSearch.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+
+            if (query.length < 2) {
+                searchResults.classList.remove('visible');
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/search-locations?q=${encodeURIComponent(query)}`);
+                    const results = await response.json();
+
+                    if (results.length > 0) {
+                        searchResults.innerHTML = results.map(loc => `
+                            <div class="search-result-item" data-location='${JSON.stringify(loc)}'>
+                                <div class="search-result-locality">${loc.locality}</div>
+                                <div class="search-result-details">${loc.state} ${loc.postcode}</div>
+                            </div>
+                        `).join('');
+                        searchResults.classList.add('visible');
+                    } else {
+                        searchResults.classList.remove('visible');
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                }
+            }, 300);
+        });
+
+        searchResults.addEventListener('click', async (e) => {
+            const item = e.target.closest('.search-result-item');
+            if (!item) return;
+
+            const location = JSON.parse(item.dataset.location);
+
+            try {
+                const response = await fetch('/api/location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ postcode: location.postcode })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentLocation = result.location;
+                    currentLocationEl.textContent = result.location.display_name;
+                    locationSearch.value = '';
+                    searchResults.classList.remove('visible');
+                }
+            } catch (error) {
+                console.error('Error setting location:', error);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.location-search')) {
+                searchResults.classList.remove('visible');
+            }
+        });
+
+        // Analyze Button
+        analyzeBtn.addEventListener('click', loadData);
+
+        async function loadData() {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('loading-location').textContent = currentLocation.display_name;
+
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    document.getElementById('loading').classList.add('hidden');
+                    return;
+                }
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+
+                updateStats(data.stats);
+                renderTrendsChart(data.trends);
+                renderHourlyChart(data.hourly);
+                renderMonthlyChart(data.monthly);
+                renderPieChart(data.stats);
+                renderDailyChart(data.daily);
+                renderBatteryMetrics(data.battery);
+                renderBatteryOptions(data.battery);
+                renderBatterySavingsChart(data.battery);
+                renderMarginalBenefitChart(data.battery);
+                renderSeasonalChart(data.battery);
+                renderBatteryInsight(data.battery);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Error loading data: ' + error.message);
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function updateStats(stats) {
+            document.getElementById('stat-sunlight').textContent = stats.sunlight_consumption.toLocaleString();
+            document.getElementById('stat-night').textContent = stats.night_consumption.toLocaleString();
+            document.getElementById('stat-export').textContent = stats.total_exports.toLocaleString();
+            document.getElementById('stat-total').textContent = stats.total_consumption.toLocaleString();
+            document.getElementById('stat-days').textContent = stats.num_days;
+            document.getElementById('stat-sunlight-pct').textContent = stats.sunlight_pct;
+            document.getElementById('stat-night-pct').textContent = stats.night_pct;
+        }
+
+        function renderTrendsChart(trends) {
+            const traces = [
+                { x: trends.dates, y: trends.sunlight, name: 'Sunlight Usage', type: 'scatter', mode: 'lines', line: { color: colors.sunlight, width: 2.5 }, fill: 'tozeroy', fillcolor: 'rgba(251, 191, 36, 0.1)' },
+                { x: trends.dates, y: trends.night, name: 'Night Usage', type: 'scatter', mode: 'lines', line: { color: colors.night, width: 2.5 } },
+                { x: trends.dates, y: trends.export, name: 'Solar Export', type: 'scatter', mode: 'lines', line: { color: colors.export, width: 2.5 } }
+            ];
+            Plotly.newPlot('chart-trends', traces, { ...plotlyLayout, showlegend: false, yaxis: { ...plotlyLayout.yaxis, title: 'kWh (7-day avg)' }, hovermode: 'x unified' }, plotlyConfig);
+        }
+
+        function renderHourlyChart(hourly) {
+            const traces = [
+                { x: hourly.hours.map(h => `${h.toString().padStart(2, '0')}:00`), y: hourly.consumption, name: 'Grid Consumption', type: 'bar', marker: { color: hourly.hours.map(h => h >= 6 && h <= 18 ? colors.sunlight : colors.night), opacity: 0.8 } },
+                { x: hourly.hours.map(h => `${h.toString().padStart(2, '0')}:00`), y: hourly.export, name: 'Solar Export', type: 'bar', marker: { color: colors.export, opacity: 0.8 } }
+            ];
+            Plotly.newPlot('chart-hourly', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, xaxis: { ...plotlyLayout.xaxis, tickangle: -45 }, yaxis: { ...plotlyLayout.yaxis, title: 'Avg kWh' } }, plotlyConfig);
+        }
+
+        function renderMonthlyChart(monthly) {
+            const traces = [
+                { x: monthly.months, y: monthly.sunlight, name: 'Sunlight', type: 'bar', marker: { color: colors.sunlight } },
+                { x: monthly.months, y: monthly.night, name: 'Night', type: 'bar', marker: { color: colors.night } },
+                { x: monthly.months, y: monthly.export, name: 'Export', type: 'bar', marker: { color: colors.export } }
+            ];
+            Plotly.newPlot('chart-monthly', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, yaxis: { ...plotlyLayout.yaxis, title: 'kWh' } }, plotlyConfig);
+        }
+
+        function renderPieChart(stats) {
+            const traces = [{ values: [stats.sunlight_consumption, stats.night_consumption], labels: ['Sunlight Usage', 'Night Usage'], type: 'pie', hole: 0.55, marker: { colors: [colors.sunlight, colors.night] }, textinfo: 'percent', textfont: { color: '#fff', size: 14 }, hovertemplate: '%{label}<br>%{value:.1f} kWh<br>%{percent}<extra></extra>' }];
+            Plotly.newPlot('chart-pie', traces, { ...plotlyLayout, showlegend: true, legend: { x: 0.5, y: -0.1, xanchor: 'center', orientation: 'h' }, annotations: [{ text: `${stats.total_consumption.toLocaleString()}<br>kWh`, x: 0.5, y: 0.5, font: { size: 18, color: colors.text }, showarrow: false }] }, plotlyConfig);
+        }
+
+        function renderDailyChart(daily) {
+            const sampleSize = Math.min(60, daily.dates.length);
+            const startIdx = daily.dates.length - sampleSize;
+            const traces = [
+                { x: daily.dates.slice(startIdx), y: daily.sunlight.slice(startIdx), name: 'Sunlight', type: 'bar', marker: { color: colors.sunlight } },
+                { x: daily.dates.slice(startIdx), y: daily.night.slice(startIdx), name: 'Night', type: 'bar', marker: { color: colors.night } }
+            ];
+            Plotly.newPlot('chart-daily', traces, { ...plotlyLayout, barmode: 'stack', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, xaxis: { ...plotlyLayout.xaxis, title: 'Last 60 days' }, yaxis: { ...plotlyLayout.yaxis, title: 'kWh' } }, plotlyConfig);
+        }
+
+        function renderBatteryMetrics(battery) {
+            const m = battery.metrics;
+            document.getElementById('battery-metrics').innerHTML = `
+                <div class="metric-item"><div class="metric-label">Avg Night Usage</div><div class="metric-value highlight-night">${m.avg_night_consumption} kWh</div></div>
+                <div class="metric-item"><div class="metric-label">Peak Night (90th %ile)</div><div class="metric-value highlight-night">${m.p90_night_consumption} kWh</div></div>
+                <div class="metric-item"><div class="metric-label">Avg Daily Export</div><div class="metric-value highlight-export">${m.avg_daily_export} kWh</div></div>
+                <div class="metric-item"><div class="metric-label">Storable Energy</div><div class="metric-value highlight-export">${m.avg_potential_storage} kWh</div></div>
+                <div class="metric-item"><div class="metric-label">Winter Night Avg</div><div class="metric-value highlight-sun">${m.winter_night_avg} kWh</div></div>
+                <div class="metric-item"><div class="metric-label">Summer Night Avg</div><div class="metric-value highlight-sun">${m.summer_night_avg} kWh</div></div>
+            `;
+        }
+
+        function renderBatteryOptions(battery) {
+            const rec = battery.recommendations;
+            const analysis = battery.battery_analysis;
+            const sweetSpotAnalysis = analysis.find(a => a.size_kwh === rec.sweet_spot_kwh) || analysis[2];
+            const minAnalysis = analysis.find(a => a.size_kwh === rec.nearest_minimum) || analysis[0];
+            const optimalAnalysis = analysis.find(a => a.size_kwh === rec.nearest_optimal) || analysis[3];
+
+            document.getElementById('battery-options').innerHTML = `
+                <div class="battery-card">
+                    <div class="battery-card-title">Minimum</div>
+                    <div class="battery-size">${rec.nearest_minimum}<span> kWh</span></div>
+                    <div class="battery-coverage">${minAnalysis?.night_coverage_pct || '--'}% night coverage</div>
+                    <ul class="battery-details">
+                        <li>Covers average night usage</li>
+                        <li>~${minAnalysis?.avg_daily_savings || '--'} kWh saved daily</li>
+                        <li>Entry-level option</li>
+                    </ul>
+                </div>
+                <div class="battery-card recommended">
+                    <div class="battery-card-title">Sweet Spot</div>
+                    <div class="battery-size">${rec.sweet_spot_kwh}<span> kWh</span></div>
+                    <div class="battery-coverage">${sweetSpotAnalysis?.night_coverage_pct || '--'}% night coverage</div>
+                    <ul class="battery-details">
+                        <li>Best value for money</li>
+                        <li>~${sweetSpotAnalysis?.avg_daily_savings || '--'} kWh saved daily</li>
+                        <li>Covers most usage scenarios</li>
+                        <li>Optimal export capture</li>
+                    </ul>
+                </div>
+                <div class="battery-card">
+                    <div class="battery-card-title">Maximum Self-Consumption</div>
+                    <div class="battery-size">${rec.nearest_optimal}<span> kWh</span></div>
+                    <div class="battery-coverage">${optimalAnalysis?.night_coverage_pct || '--'}% night coverage</div>
+                    <ul class="battery-details">
+                        <li>Covers 90th percentile nights</li>
+                        <li>~${optimalAnalysis?.avg_daily_savings || '--'} kWh saved daily</li>
+                        <li>Maximum grid independence</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function renderBatterySavingsChart(battery) {
+            const analysis = battery.battery_analysis;
+            const traces = [{ x: analysis.map(a => `${a.size_kwh} kWh`), y: analysis.map(a => a.night_coverage_pct), name: 'Night Coverage %', type: 'bar', marker: { color: analysis.map(a => a.size_kwh === battery.recommendations.sweet_spot_kwh ? colors.export : 'rgba(52, 211, 153, 0.5)') }, text: analysis.map(a => `${a.night_coverage_pct}%`), textposition: 'outside', textfont: { color: colors.text } }];
+            Plotly.newPlot('chart-battery-savings', traces, { ...plotlyLayout, showlegend: false, yaxis: { ...plotlyLayout.yaxis, title: 'Night Usage Covered (%)', range: [0, 110] }, annotations: [{ x: `${battery.recommendations.sweet_spot_kwh} kWh`, y: analysis.find(a => a.size_kwh === battery.recommendations.sweet_spot_kwh)?.night_coverage_pct || 0, text: '★ Best Value', showarrow: true, arrowhead: 2, arrowcolor: colors.export, font: { color: colors.export, size: 11 }, ax: 0, ay: -40 }] }, plotlyConfig);
+        }
+
+        function renderMarginalBenefitChart(battery) {
+            const mb = battery.marginal_benefits;
+            const traces = [{ x: mb.map(m => `${m.from_size}→${m.to_size} kWh`), y: mb.map(m => m.marginal_benefit), type: 'scatter', mode: 'lines+markers', line: { color: colors.sunlight, width: 3 }, marker: { size: 10, color: colors.sunlight }, fill: 'tozeroy', fillcolor: 'rgba(251, 191, 36, 0.1)' }];
+            Plotly.newPlot('chart-marginal', traces, { ...plotlyLayout, showlegend: false, yaxis: { ...plotlyLayout.yaxis, title: 'Marginal Benefit (kWh/kWh)' }, annotations: [{ x: 0.5, y: 1.05, xref: 'paper', yref: 'paper', text: 'Higher = better value per additional kWh', showarrow: false, font: { color: colors.text, size: 11 } }] }, plotlyConfig);
+        }
+
+        function renderSeasonalChart(battery) {
+            const m = battery.metrics;
+            const traces = [
+                { x: ['Winter', 'Summer'], y: [m.winter_night_avg, m.summer_night_avg], name: 'Night Usage', type: 'bar', marker: { color: colors.night } },
+                { x: ['Winter', 'Summer'], y: [m.winter_export_avg, m.summer_export_avg], name: 'Solar Export', type: 'bar', marker: { color: colors.export } }
+            ];
+            Plotly.newPlot('chart-seasonal', traces, { ...plotlyLayout, barmode: 'group', showlegend: true, legend: { x: 0, y: 1.1, orientation: 'h' }, yaxis: { ...plotlyLayout.yaxis, title: 'Daily Average (kWh)' }, annotations: [
+                { x: 'Winter', y: Math.max(m.winter_night_avg, m.winter_export_avg) + 1, text: m.winter_export_avg >= m.winter_night_avg ? '✓ Export covers night' : '⚠ Need more export', showarrow: false, font: { color: m.winter_export_avg >= m.winter_night_avg ? colors.export : colors.sunlight, size: 11 } },
+                { x: 'Summer', y: Math.max(m.summer_night_avg, m.summer_export_avg) + 1, text: m.summer_export_avg >= m.summer_night_avg ? '✓ Export covers night' : '⚠ Need more export', showarrow: false, font: { color: m.summer_export_avg >= m.summer_night_avg ? colors.export : colors.sunlight, size: 11 } }
+            ] }, plotlyConfig);
+        }
+
+        function renderBatteryInsight(battery) {
+            const rec = battery.recommendations;
+            const m = battery.metrics;
+            const analysis = battery.battery_analysis;
+            const sweetSpotAnalysis = analysis.find(a => a.size_kwh === rec.sweet_spot_kwh);
+            const annualSavings = sweetSpotAnalysis ? (sweetSpotAnalysis.avg_daily_savings * 365).toFixed(0) : '--';
+            const exportCaptured = m.avg_daily_export > 0 ? ((sweetSpotAnalysis?.avg_daily_savings / m.avg_daily_export) * 100).toFixed(0) : '--';
+            const winterChallenge = m.winter_export_avg < m.winter_night_avg;
+
+            document.getElementById('battery-insight').innerHTML = `
+                <h4>💡 Key Insights</h4>
+                <p>Based on your usage patterns, a <strong>${rec.sweet_spot_kwh} kWh battery</strong> offers the best value. It would capture approximately <strong>${exportCaptured}%</strong> of your daily solar export and save around <strong>${annualSavings} kWh per year</strong> from grid imports.</p>
+                <p style="margin-top: 0.75rem;">${winterChallenge 
+                    ? `<span style="color: ${colors.sunlight}">⚠ Winter months show lower solar export than night usage.</span> Consider a slightly larger battery for year-round coverage, or accept lower winter self-sufficiency.`
+                    : `<span style="color: ${colors.export}">✓ Your solar export exceeds night usage in both seasons.</span> A ${rec.sweet_spot_kwh} kWh battery should provide excellent year-round coverage.`
+                }</p>
+                <div class="progress-bar-container" style="margin-top: 1rem;"><div class="progress-bar green" style="width: ${sweetSpotAnalysis?.night_coverage_pct || 0}%">${sweetSpotAnalysis?.night_coverage_pct || 0}% night usage covered</div></div>
+            `;
+        }
+
+        // Auto-load if we already have data
+        {% if has_data %}
+        document.addEventListener('DOMContentLoaded', loadData);
+        {% endif %}
+    </script>
+</body>
+</html>
+
