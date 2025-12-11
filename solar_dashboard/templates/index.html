@@ -1014,6 +1014,31 @@
                     <div id="chart-trends" class="chart-container tall"></div>
                 </div>
 
+                <!-- Battery Simulation Chart -->
+                <div class="chart-card full-width">
+                    <div class="chart-header">
+                        <div class="chart-title">🔋 Battery Simulation - What If?</div>
+                        <div class="chart-controls">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">
+                                Battery Size:
+                                <select id="sim-battery-size" style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text); padding: 0.3rem 0.5rem; border-radius: 4px;">
+                                    <option value="8">8 kWh (1 module)</option>
+                                    <option value="16">16 kWh (2 modules)</option>
+                                    <option value="24">24 kWh (3 modules)</option>
+                                    <option value="32" selected>32 kWh (4 modules)</option>
+                                    <option value="40">40 kWh (5 modules)</option>
+                                    <option value="48">48 kWh (6 modules)</option>
+                                    <option value="64">64 kWh (8 modules)</option>
+                                    <option value="80">80 kWh (10 modules)</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="chart-battery-sim" class="chart-container tall"></div>
+                    <div id="battery-sim-stats" style="display: flex; gap: 2rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 0.5rem; flex-wrap: wrap;">
+                    </div>
+                </div>
+
                 <div class="chart-row">
                     <div class="chart-card">
                         <div class="chart-header">
@@ -1422,6 +1447,11 @@
                 };
                 renderTrendsChart(trendsData, document.getElementById('trends-toggle').checked ? 'daily' : 'rolling');
                 
+                // Store daily data for battery simulation
+                globalDailyData = data.daily;
+                const simBatterySize = parseInt(document.getElementById('sim-battery-size').value);
+                renderBatterySimulation(data.daily, simBatterySize);
+                
                 renderHourlyChart(data.hourly);
                 renderMonthlyChart(data.monthly);
                 renderDaylightChart(data.daylight);
@@ -1536,6 +1566,185 @@
                 yaxis: { ...plotlyLayout.yaxis, title: yAxisTitle }, 
                 hovermode: 'x unified' 
             }, plotlyConfig);
+        }
+
+        // Store daily data globally for battery simulation
+        let globalDailyData = null;
+        
+        function simulateBattery(daily, batterySizeKwh) {
+            const efficiency = 0.97; // Sigenergy efficiency
+            const usableCapacity = batterySizeKwh * efficiency;
+            
+            const dates = daily.dates;
+            const nightUsage = daily.night;
+            const solarExport = daily.export;
+            
+            // Simulation results
+            const simNightUsage = [];      // Night usage after battery discharge
+            const simExport = [];          // Export after battery charging
+            const batterySOC = [];         // State of charge at end of each day
+            const batteryCharged = [];     // kWh charged each day
+            const batteryDischarged = [];  // kWh discharged each day
+            
+            let currentSOC = 0; // Start with empty battery
+            
+            for (let i = 0; i < dates.length; i++) {
+                const dayExport = solarExport[i] || 0;
+                const dayNight = nightUsage[i] || 0;
+                
+                // Phase 1: Charge battery from solar export
+                const availableToCharge = Math.min(dayExport, usableCapacity - currentSOC);
+                const charged = availableToCharge;
+                currentSOC += charged;
+                
+                // Phase 2: Discharge battery for night usage
+                const availableToDischarge = Math.min(dayNight, currentSOC);
+                const discharged = availableToDischarge;
+                currentSOC -= discharged;
+                
+                // Store results
+                simNightUsage.push(Math.max(0, dayNight - discharged));
+                simExport.push(Math.max(0, dayExport - charged));
+                batterySOC.push(currentSOC);
+                batteryCharged.push(charged);
+                batteryDischarged.push(discharged);
+            }
+            
+            return {
+                dates,
+                originalNight: nightUsage,
+                simNightUsage,
+                originalExport: solarExport,
+                simExport,
+                batterySOC,
+                batteryCharged,
+                batteryDischarged,
+                usableCapacity
+            };
+        }
+        
+        function renderBatterySimulation(daily, batterySizeKwh) {
+            const sim = simulateBattery(daily, batterySizeKwh);
+            
+            // Calculate 7-day rolling averages for smoother visualization
+            const rollingWindow = 7;
+            const rolling = (arr) => {
+                const result = [];
+                for (let i = 0; i < arr.length; i++) {
+                    if (i < rollingWindow - 1) {
+                        result.push(null);
+                    } else {
+                        const slice = arr.slice(i - rollingWindow + 1, i + 1);
+                        result.push(slice.reduce((a, b) => a + b, 0) / rollingWindow);
+                    }
+                }
+                return result;
+            };
+            
+            const traces = [
+                {
+                    x: sim.dates,
+                    y: rolling(sim.originalNight),
+                    name: 'Night Usage (Original)',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: colors.night, width: 2, dash: 'dot' },
+                    opacity: 0.5
+                },
+                {
+                    x: sim.dates,
+                    y: rolling(sim.simNightUsage),
+                    name: 'Night Usage (With Battery)',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: colors.night, width: 2.5 },
+                    fill: 'tozeroy',
+                    fillcolor: 'rgba(96, 165, 250, 0.2)'
+                },
+                {
+                    x: sim.dates,
+                    y: rolling(sim.originalExport),
+                    name: 'Solar Export (Original)',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: colors.export, width: 2, dash: 'dot' },
+                    opacity: 0.5
+                },
+                {
+                    x: sim.dates,
+                    y: rolling(sim.simExport),
+                    name: 'Solar Export (With Battery)',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: colors.export, width: 2.5 }
+                },
+                {
+                    x: sim.dates,
+                    y: rolling(sim.batterySOC),
+                    name: 'Battery SOC',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: '#a855f7', width: 2 },
+                    yaxis: 'y2'
+                }
+            ];
+            
+            Plotly.newPlot('chart-battery-sim', traces, {
+                ...plotlyLayout,
+                showlegend: true,
+                legend: { x: 0, y: 1.15, orientation: 'h', font: { size: 11 } },
+                yaxis: { ...plotlyLayout.yaxis, title: 'kWh (7-day avg)' },
+                yaxis2: {
+                    title: 'Battery SOC (kWh)',
+                    overlaying: 'y',
+                    side: 'right',
+                    showgrid: false,
+                    color: '#a855f7',
+                    range: [0, sim.usableCapacity * 1.1]
+                },
+                hovermode: 'x unified'
+            }, plotlyConfig);
+            
+            // Calculate stats
+            const totalOriginalNight = sim.originalNight.reduce((a, b) => a + b, 0);
+            const totalSimNight = sim.simNightUsage.reduce((a, b) => a + b, 0);
+            const totalOriginalExport = sim.originalExport.reduce((a, b) => a + b, 0);
+            const totalSimExport = sim.simExport.reduce((a, b) => a + b, 0);
+            const totalCharged = sim.batteryCharged.reduce((a, b) => a + b, 0);
+            const totalDischarged = sim.batteryDischarged.reduce((a, b) => a + b, 0);
+            const avgSOC = sim.batterySOC.reduce((a, b) => a + b, 0) / sim.batterySOC.length;
+            
+            const nightReduction = ((totalOriginalNight - totalSimNight) / totalOriginalNight * 100).toFixed(1);
+            const exportReduction = ((totalOriginalExport - totalSimExport) / totalOriginalExport * 100).toFixed(1);
+            
+            document.getElementById('battery-sim-stats').innerHTML = `
+                <div style="flex: 1; min-width: 150px;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem;">Night Grid Usage</div>
+                    <div style="font-size: 1.2rem; font-weight: 600; color: ${colors.night};">
+                        ${totalSimNight.toFixed(0)} kWh
+                        <span style="font-size: 0.85rem; color: var(--accent-export);">↓${nightReduction}%</span>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.75rem;">was ${totalOriginalNight.toFixed(0)} kWh</div>
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem;">Solar Exported</div>
+                    <div style="font-size: 1.2rem; font-weight: 600; color: ${colors.export};">
+                        ${totalSimExport.toFixed(0)} kWh
+                        <span style="font-size: 0.85rem; color: var(--text-secondary);">↓${exportReduction}%</span>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.75rem;">was ${totalOriginalExport.toFixed(0)} kWh</div>
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem;">Self-Consumed via Battery</div>
+                    <div style="font-size: 1.2rem; font-weight: 600; color: #a855f7;">${totalDischarged.toFixed(0)} kWh</div>
+                    <div style="color: var(--text-secondary); font-size: 0.75rem;">${(totalDischarged / sim.dates.length).toFixed(1)} kWh/day avg</div>
+                </div>
+                <div style="flex: 1; min-width: 150px;">
+                    <div style="color: var(--text-secondary); font-size: 0.8rem;">Avg Battery Level</div>
+                    <div style="font-size: 1.2rem; font-weight: 600; color: #a855f7;">${avgSOC.toFixed(1)} kWh</div>
+                    <div style="color: var(--text-secondary); font-size: 0.75rem;">${(avgSOC / sim.usableCapacity * 100).toFixed(0)}% of ${sim.usableCapacity.toFixed(0)} kWh</div>
+                </div>
+            `;
         }
 
         function renderHourlyChart(hourly) {
@@ -1904,6 +2113,13 @@
         document.getElementById('trends-toggle').addEventListener('change', (e) => {
             if (trendsData.daily && trendsData.rolling) {
                 renderTrendsChart(trendsData, e.target.checked ? 'daily' : 'rolling');
+            }
+        });
+        
+        // Battery simulation size selector
+        document.getElementById('sim-battery-size').addEventListener('change', (e) => {
+            if (globalDailyData) {
+                renderBatterySimulation(globalDailyData, parseInt(e.target.value));
             }
         });
 
