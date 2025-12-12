@@ -1824,10 +1824,14 @@
         }
         
         function renderMonthlyCostComparison(sim) {
-            // Get rates from ROI inputs
-            const peakRate = parseFloat(document.getElementById('rate-peak').value) / 100;
-            const offpeakRate = parseFloat(document.getElementById('rate-offpeak').value) / 100;
-            const feedInRate = parseFloat(document.getElementById('rate-solar-fit').value) / 100;
+            // Get rates from ROI inputs (with defaults if not available)
+            const peakEl = document.getElementById('rate-peak');
+            const offpeakEl = document.getElementById('rate-offpeak');
+            const feedInEl = document.getElementById('rate-solar-fit');
+            
+            const peakRate = (peakEl ? parseFloat(peakEl.value) : 33) / 100;
+            const offpeakRate = (offpeakEl ? parseFloat(offpeakEl.value) : 16) / 100;
+            const feedInRate = (feedInEl ? parseFloat(feedInEl.value) : 5) / 100;
             
             // Use average rate for simplicity (or could do peak/offpeak split)
             const avgImportRate = (peakRate + offpeakRate) / 2;
