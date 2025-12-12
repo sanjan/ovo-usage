@@ -1496,6 +1496,9 @@
                 const simBatterySize = parseInt(document.getElementById('sim-battery-size').value);
                 renderBatterySimulation(data.daily, simBatterySize);
                 
+                // Calculate simulation savings for all battery sizes (used by ROI)
+                calculateAllSimulationSavings(data.daily);
+                
                 renderHourlyChart(data.hourly);
                 renderMonthlyChart(data.monthly);
                 renderDaylightChart(data.daylight);
@@ -1617,6 +1620,7 @@
 
         // Store daily data globally for battery simulation
         let globalDailyData = null;
+        let simulationAnnualSavings = {};  // Store annual savings per battery size from simulation
         
         function simulateBattery(daily, batterySizeKwh) {
             const efficiency = 0.97; // Sigenergy efficiency
@@ -1820,10 +1824,47 @@
             `;
             
             // Calculate monthly cost comparison
-            renderMonthlyCostComparison(sim);
+            renderMonthlyCostComparison(sim, batterySizeKwh);
         }
         
-        function renderMonthlyCostComparison(sim) {
+        // Calculate simulation savings for ALL battery sizes (for ROI)
+        function calculateAllSimulationSavings(daily) {
+            const batterySizes = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80];
+            const peakEl = document.getElementById('rate-peak');
+            const offpeakEl = document.getElementById('rate-offpeak');
+            const feedInEl = document.getElementById('rate-solar-fit');
+            
+            const peakRate = (peakEl ? parseFloat(peakEl.value) : 33) / 100;
+            const offpeakRate = (offpeakEl ? parseFloat(offpeakEl.value) : 16) / 100;
+            const feedInRate = (feedInEl ? parseFloat(feedInEl.value) : 5) / 100;
+            const avgImportRate = (peakRate + offpeakRate) / 2;
+            
+            simulationAnnualSavings = {};
+            
+            batterySizes.forEach(size => {
+                const sim = simulateBattery(daily, size);
+                
+                // Calculate total savings for the period
+                let totalWithout = 0, totalWith = 0;
+                sim.dates.forEach((dateStr, i) => {
+                    totalWithout += (sim.originalNight[i] * avgImportRate) - (sim.originalExport[i] * feedInRate);
+                    totalWith += (sim.simNightUsage[i] * avgImportRate) - (sim.simExport[i] * feedInRate);
+                });
+                
+                const totalSavings = totalWithout - totalWith;
+                const daysInPeriod = sim.dates.length;
+                const annualSavings = (totalSavings / daysInPeriod) * 365;
+                
+                simulationAnnualSavings[size] = {
+                    annualSavings: annualSavings,
+                    dailySavings: totalSavings / daysInPeriod,
+                    totalSavings: totalSavings,
+                    daysInPeriod: daysInPeriod
+                };
+            });
+        }
+        
+        function renderMonthlyCostComparison(sim, batterySizeKwh) {
             // Get rates from ROI inputs (with defaults if not available)
             const peakEl = document.getElementById('rate-peak');
             const offpeakEl = document.getElementById('rate-offpeak');
@@ -2149,9 +2190,18 @@
             // Calculate ROI for each battery size
             return analysis.map(a => {
                 const batteryCost = a.size_kwh * rates.batteryCost;
-                // Savings = kWh shifted from export to self-use × (usage rate - feed-in rate)
-                const dailySavingsDollars = a.avg_daily_savings * (rates.usage - rates.feedIn);
-                const annualSavings = dailySavingsDollars * 365;
+                
+                // Use simulation savings if available (more accurate), fallback to backend calculation
+                let annualSavings, dailySavingsDollars;
+                if (simulationAnnualSavings[a.size_kwh]) {
+                    annualSavings = simulationAnnualSavings[a.size_kwh].annualSavings;
+                    dailySavingsDollars = simulationAnnualSavings[a.size_kwh].dailySavings;
+                } else {
+                    // Fallback: Savings = kWh shifted from export to self-use × (usage rate - feed-in rate)
+                    dailySavingsDollars = a.avg_daily_savings * (rates.usage - rates.feedIn);
+                    annualSavings = dailySavingsDollars * 365;
+                }
+                
                 const paybackYears = annualSavings > 0 ? batteryCost / annualSavings : Infinity;
                 
                 return {
@@ -2293,6 +2343,16 @@
 
         function updateROIAnalysis() {
             if (!currentBatteryData) return;
+            
+            // Recalculate simulation savings with new rates
+            if (globalDailyData) {
+                calculateAllSimulationSavings(globalDailyData);
+                // Also update the battery simulation monthly table
+                const simBatterySize = parseInt(document.getElementById('sim-battery-size').value);
+                const sim = simulateBattery(globalDailyData, simBatterySize);
+                renderMonthlyCostComparison(sim, simBatterySize);
+            }
+            
             renderROITable(currentBatteryData);
             renderPaybackChart(currentBatteryData);
             renderCumulativeSavingsChart(currentBatteryData);
