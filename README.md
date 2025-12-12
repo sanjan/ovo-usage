@@ -7,9 +7,9 @@ A web dashboard for analyzing electricity data exported from [OVO Energy Austral
 
 ## Features
 
-- 📊 **Interactive Charts** - Powered by Plotly.js with zoom, pan, and hover details
+- 📊 **Interactive Charts** - Powered by Plotly.js with synced zoom across time-series
 - ☀️ **Smart Daytime Detection** - Uses actual solar generation data (not astronomical sunrise/sunset)
-- 🔋 **Battery Simulation** - "What If?" chart showing grid import reduction with different battery sizes
+- 🔋 **Battery Simulation** - "What If?" chart with seasonal SOC breakdown (Summer vs Winter)
 - 💰 **ROI Analysis** - Calculate payback period with your actual OVO rates
 - 🆓 **Free Power Window** - Configure your free electricity period (e.g., 11am-2pm)
 - 📅 **Date Range Selection** - Analyze specific periods (auto-suggests 1-year range)
@@ -73,9 +73,12 @@ The "🔋 Battery Simulation - What If?" chart shows:
 - Original vs simulated night grid import (with battery)
 - Original vs simulated solar export (after charging battery)
 - Battery state of charge over time (with daily carryover!)
-- Stats: grid reduction %, self-consumed kWh, average battery level
+- Stats: grid reduction %, self-consumed kWh
+- **Seasonal SOC**: Average battery level for ☀️ Summer vs ❄️ Winter
 
 Select different battery sizes (8-80 kWh) to see how they'd perform with your actual usage data.
+
+**Pro tip**: Zoom on one chart and both time-series charts sync automatically!
 
 ## ROI Analysis
 

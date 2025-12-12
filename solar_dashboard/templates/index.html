@@ -1037,6 +1037,8 @@
                     <div id="chart-battery-sim" class="chart-container tall"></div>
                     <div id="battery-sim-stats" style="display: flex; gap: 2rem; padding: 1rem; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 0.5rem; flex-wrap: wrap;">
                     </div>
+                    <div id="battery-sim-monthly" style="margin-top: 1rem; overflow-x: auto;">
+                    </div>
                 </div>
 
                 <div class="chart-row">
@@ -1814,6 +1816,103 @@
                     <div style="color: var(--text-secondary); font-size: 0.75rem;">
                         Summer ${(avgSummerSOC / sim.usableCapacity * 100).toFixed(0)}% / Winter ${(avgWinterSOC / sim.usableCapacity * 100).toFixed(0)}%
                     </div>
+                </div>
+            `;
+            
+            // Calculate monthly cost comparison
+            renderMonthlyCostComparison(sim);
+        }
+        
+        function renderMonthlyCostComparison(sim) {
+            // Get rates from ROI inputs
+            const peakRate = parseFloat(document.getElementById('rate-peak').value) / 100;
+            const offpeakRate = parseFloat(document.getElementById('rate-offpeak').value) / 100;
+            const feedInRate = parseFloat(document.getElementById('rate-solar-fit').value) / 100;
+            
+            // Use average rate for simplicity (or could do peak/offpeak split)
+            const avgImportRate = (peakRate + offpeakRate) / 2;
+            
+            // Group by month
+            const monthlyData = {};
+            
+            sim.dates.forEach((dateStr, i) => {
+                const date = new Date(dateStr);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = {
+                        originalNight: 0,
+                        simNight: 0,
+                        originalExport: 0,
+                        simExport: 0
+                    };
+                }
+                
+                monthlyData[monthKey].originalNight += sim.originalNight[i] || 0;
+                monthlyData[monthKey].simNight += sim.simNightUsage[i] || 0;
+                monthlyData[monthKey].originalExport += sim.originalExport[i] || 0;
+                monthlyData[monthKey].simExport += sim.simExport[i] || 0;
+            });
+            
+            // Calculate costs
+            const months = Object.keys(monthlyData).sort();
+            let totalWithout = 0, totalWith = 0;
+            
+            const rows = months.map(month => {
+                const d = monthlyData[month];
+                
+                // Without battery: pay for all night import, earn feed-in for all export
+                const costWithout = (d.originalNight * avgImportRate) - (d.originalExport * feedInRate);
+                
+                // With battery: pay for reduced night import, earn less feed-in (stored instead)
+                const costWith = (d.simNight * avgImportRate) - (d.simExport * feedInRate);
+                
+                const savings = costWithout - costWith;
+                
+                totalWithout += costWithout;
+                totalWith += costWith;
+                
+                // Format month for display
+                const [year, mon] = month.split('-');
+                const monthName = new Date(year, parseInt(mon) - 1).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+                
+                return `
+                    <tr>
+                        <td style="padding: 0.5rem; border-bottom: 1px solid var(--border);">${monthName}</td>
+                        <td style="padding: 0.5rem; border-bottom: 1px solid var(--border); text-align: right;">$${costWithout.toFixed(0)}</td>
+                        <td style="padding: 0.5rem; border-bottom: 1px solid var(--border); text-align: right;">$${costWith.toFixed(0)}</td>
+                        <td style="padding: 0.5rem; border-bottom: 1px solid var(--border); text-align: right; color: var(--accent-export); font-weight: 600;">$${savings.toFixed(0)}</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            const totalSavings = totalWithout - totalWith;
+            
+            document.getElementById('battery-sim-monthly').innerHTML = `
+                <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text);">
+                    💰 Monthly Cost Comparison (using your rates)
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: rgba(0,0,0,0.3);">
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid var(--border);">Month</th>
+                            <th style="padding: 0.5rem; text-align: right; border-bottom: 2px solid var(--border);">Without Battery</th>
+                            <th style="padding: 0.5rem; text-align: right; border-bottom: 2px solid var(--border);">With Battery</th>
+                            <th style="padding: 0.5rem; text-align: right; border-bottom: 2px solid var(--border);">Savings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                        <tr style="background: rgba(52, 211, 153, 0.1); font-weight: 600;">
+                            <td style="padding: 0.75rem;">TOTAL</td>
+                            <td style="padding: 0.75rem; text-align: right;">$${totalWithout.toFixed(0)}</td>
+                            <td style="padding: 0.75rem; text-align: right;">$${totalWith.toFixed(0)}</td>
+                            <td style="padding: 0.75rem; text-align: right; color: var(--accent-export);">$${totalSavings.toFixed(0)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    * Based on avg rate of ${(avgImportRate * 100).toFixed(1)}c/kWh import, ${(feedInRate * 100).toFixed(1)}c/kWh feed-in
                 </div>
             `;
         }

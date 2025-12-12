@@ -60,6 +60,12 @@ The "What If?" simulation chart shows:
 - Original vs simulated solar export
 - Battery state of charge (SOC) with daily carryover
 - Stats: grid reduction %, export reduction %, self-consumed kWh
+- **Seasonal SOC**: Shows average battery level for Summer ☀️ vs Winter ❄️
+
+### Chart Interactions
+- **Synced zoom**: Zooming on one time-series chart syncs all others
+- **Horizontal zoom only**: No box zoom, just x-axis range selection
+- **Double-click to reset**: Returns to full date range
 
 ### ROI Analysis
 - Default battery cost: $540/kWh (Sigenergy pricing)
@@ -91,8 +97,9 @@ solar_dashboard/
 | Function | Purpose |
 |----------|---------|
 | `simulateBattery()` | Simulate battery charging/discharging with daily carryover |
-| `renderBatterySimulation()` | Render "What If?" chart with battery size selector |
+| `renderBatterySimulation()` | Render "What If?" chart with seasonal SOC stats |
 | `renderTrendsChart()` | 7-day rolling average or daily values chart |
+| `setupChartSync()` | Sync zoom range across time-series charts |
 
 ### API Endpoints
 
