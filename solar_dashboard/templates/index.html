@@ -980,6 +980,63 @@
                 </div>
             </div>
 
+            <!-- Global Settings Section -->
+            <div class="settings-section" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                    <span style="font-size: 1.1rem;">⚙️</span>
+                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--text);">Your Electricity Rates</h3>
+                </div>
+                <div class="rate-inputs">
+                    <div class="rate-input-group">
+                        <label>Peak Rate</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-peak" value="44" min="0" max="100" step="0.01">
+                            <span class="rate-unit">c/kWh</span>
+                        </div>
+                    </div>
+                    <div class="rate-input-group">
+                        <label>Off-Peak Rate</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-offpeak" value="24.83" min="0" max="100" step="0.01">
+                            <span class="rate-unit">c/kWh</span>
+                        </div>
+                    </div>
+                    <div class="rate-input-group">
+                        <label>Solar Feed-in Tariff</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-feedin" value="3.3" min="0" max="50" step="0.1">
+                            <span class="rate-unit">c/kWh</span>
+                        </div>
+                    </div>
+                    <div class="rate-input-group">
+                        <label>Battery Cost (installed)</label>
+                        <div class="rate-input-wrapper">
+                            <input type="number" class="rate-input" id="rate-battery-cost" value="540" min="0" max="2000" step="10">
+                            <span class="rate-unit">$/kWh</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rate-inputs" style="margin-top: 1rem;">
+                    <div class="rate-input-group" style="flex: 2;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="free-window-enabled" checked style="width: 18px; height: 18px; accent-color: var(--accent-export);">
+                            Free Power Window
+                        </label>
+                        <div class="rate-input-wrapper" style="margin-top: 0.5rem;">
+                            <input type="time" class="rate-input" id="free-window-start" value="11:00" style="width: auto;">
+                            <span class="rate-unit">to</span>
+                            <input type="time" class="rate-input" id="free-window-end" value="14:00" style="width: auto;">
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            Grid usage during this window won't count towards battery savings
+                        </div>
+                    </div>
+                </div>
+                <button class="analyze-btn" id="update-rates-btn" style="margin-top: 1rem; max-width: 250px; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
+                    🔄 Update All Calculations
+                </button>
+            </div>
+
             <!-- Date Range Selector -->
             <div class="date-range-section">
                 <div class="date-range-info">
@@ -1137,59 +1194,8 @@
                 <!-- ROI Analysis Section -->
                 <div class="section-header" style="margin-top: 3rem;">
                     <h2>💰 Return on Investment Analysis</h2>
-                    <p>Estimate payback period based on your electricity rates</p>
+                    <p>Based on your electricity rates configured above</p>
                 </div>
-
-                <div class="rate-inputs">
-                    <div class="rate-input-group">
-                        <label>Peak Rate</label>
-                        <div class="rate-input-wrapper">
-                            <input type="number" class="rate-input" id="rate-peak" value="44" min="0" max="100" step="0.01">
-                            <span class="rate-unit">c/kWh</span>
-                        </div>
-                    </div>
-                    <div class="rate-input-group">
-                        <label>Off-Peak Rate</label>
-                        <div class="rate-input-wrapper">
-                            <input type="number" class="rate-input" id="rate-offpeak" value="24.83" min="0" max="100" step="0.01">
-                            <span class="rate-unit">c/kWh</span>
-                        </div>
-                    </div>
-                    <div class="rate-input-group">
-                        <label>Solar Feed-in Tariff</label>
-                        <div class="rate-input-wrapper">
-                            <input type="number" class="rate-input" id="rate-feedin" value="3.3" min="0" max="50" step="0.1">
-                            <span class="rate-unit">c/kWh</span>
-                        </div>
-                    </div>
-                    <div class="rate-input-group">
-                        <label>Battery Cost (installed)</label>
-                        <div class="rate-input-wrapper">
-                            <input type="number" class="rate-input" id="rate-battery-cost" value="540" min="0" max="2000" step="10">
-                            <span class="rate-unit">$/kWh</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rate-inputs" style="margin-top: 1rem;">
-                    <div class="rate-input-group" style="flex: 2;">
-                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                            <input type="checkbox" id="free-window-enabled" checked style="width: 18px; height: 18px; accent-color: var(--accent-export);">
-                            Free Power Window
-                        </label>
-                        <div class="rate-input-wrapper" style="margin-top: 0.5rem;">
-                            <input type="time" class="rate-input" id="free-window-start" value="11:00" style="width: auto;">
-                            <span class="rate-unit">to</span>
-                            <input type="time" class="rate-input" id="free-window-end" value="14:00" style="width: auto;">
-                        </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                            Grid usage during this window won't count towards battery savings
-                        </div>
-                    </div>
-                </div>
-                <button class="analyze-btn" id="update-roi-btn" style="margin-top: 0; max-width: 300px;">
-                    💰 Update ROI Calculation
-                </button>
 
                 <div class="roi-table-container">
                     <table class="roi-table" id="roi-table">
@@ -2362,7 +2368,7 @@
             const minimum = analysis.find(a => a.size_kwh === rec.minimum_kwh) || analysis[0];
             const sweetSpot = analysis.find(a => a.size_kwh === rec.sweet_spot_kwh) || analysis[2];
             const maximum = analysis.find(a => a.size_kwh === rec.maximum_kwh) || analysis[analysis.length - 1];
-            
+
             document.getElementById('battery-options').innerHTML = `
                 <div class="battery-card">
                     <div class="battery-card-title">Entry Level</div>
@@ -2634,8 +2640,11 @@
             renderROIInsight(currentBatteryData);
         }
 
-        // ROI Update button
-        document.getElementById('update-roi-btn').addEventListener('click', updateROIAnalysis);
+        // Update All Calculations button (rates section at top)
+        document.getElementById('update-rates-btn').addEventListener('click', () => {
+            // Reload data with new rates (this handles free window changes)
+            loadData();
+        });
 
         // Trends chart toggle (rolling avg vs daily)
         document.getElementById('trends-toggle').addEventListener('change', (e) => {
