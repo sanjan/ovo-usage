@@ -1918,6 +1918,16 @@
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
                     * Based on avg rate of ${(avgImportRate * 100).toFixed(1)}c/kWh import, ${(feedInRate * 100).toFixed(1)}c/kWh feed-in
                 </div>
+                <div style="margin-top: 1rem; padding: 1rem; background: linear-gradient(135deg, rgba(52, 211, 153, 0.15), rgba(52, 211, 153, 0.05)); border-radius: 8px; border-left: 4px solid var(--accent-export);">
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Average Monthly Savings</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent-export);">
+                        $${(totalSavings / months.length).toFixed(0)}/month
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Over ${months.length} months, a battery would save you <strong style="color: var(--text);">$${totalSavings.toFixed(0)}</strong> 
+                        (reducing your bill from $${totalWithout.toFixed(0)} to $${totalWith.toFixed(0)})
+                    </div>
+                </div>
             `;
         }
 
