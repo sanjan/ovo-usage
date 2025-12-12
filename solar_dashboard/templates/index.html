@@ -2066,7 +2066,7 @@
             const batterySizes = [8, 16, 24, 32, 40, 48, 56, 64, 72, 80];
             const peakEl = document.getElementById('rate-peak');
             const offpeakEl = document.getElementById('rate-offpeak');
-            const feedInEl = document.getElementById('rate-solar-fit');
+            const feedInEl = document.getElementById('rate-feedin');
             const modeEl = document.getElementById('sim-mode');
             
             const peakRate = (peakEl ? parseFloat(peakEl.value) : 33) / 100;
@@ -2123,7 +2123,7 @@
             // Get rates from ROI inputs (with defaults if not available)
             const peakEl = document.getElementById('rate-peak');
             const offpeakEl = document.getElementById('rate-offpeak');
-            const feedInEl = document.getElementById('rate-solar-fit');
+            const feedInEl = document.getElementById('rate-feedin');
             
             const peakRate = (peakEl ? parseFloat(peakEl.value) : 33) / 100;
             const offpeakRate = (offpeakEl ? parseFloat(offpeakEl.value) : 16) / 100;
