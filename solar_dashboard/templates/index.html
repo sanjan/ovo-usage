@@ -1761,7 +1761,23 @@
             const totalSimExport = sim.simExport.reduce((a, b) => a + b, 0);
             const totalCharged = sim.batteryCharged.reduce((a, b) => a + b, 0);
             const totalDischarged = sim.batteryDischarged.reduce((a, b) => a + b, 0);
-            const avgSOC = sim.batterySOC.reduce((a, b) => a + b, 0) / sim.batterySOC.length;
+            
+            // Calculate seasonal SOC (Australian: Summer = Dec-Feb, Winter = Jun-Aug)
+            const summerMonths = [12, 1, 2];
+            const winterMonths = [6, 7, 8];
+            let summerSOC = [], winterSOC = [];
+            
+            sim.dates.forEach((dateStr, i) => {
+                const month = new Date(dateStr).getMonth() + 1;
+                if (summerMonths.includes(month)) {
+                    summerSOC.push(sim.batterySOC[i]);
+                } else if (winterMonths.includes(month)) {
+                    winterSOC.push(sim.batterySOC[i]);
+                }
+            });
+            
+            const avgSummerSOC = summerSOC.length > 0 ? summerSOC.reduce((a, b) => a + b, 0) / summerSOC.length : 0;
+            const avgWinterSOC = winterSOC.length > 0 ? winterSOC.reduce((a, b) => a + b, 0) / winterSOC.length : 0;
             
             const nightReduction = ((totalOriginalNight - totalSimNight) / totalOriginalNight * 100).toFixed(1);
             const exportReduction = ((totalOriginalExport - totalSimExport) / totalOriginalExport * 100).toFixed(1);
@@ -1789,9 +1805,15 @@
                     <div style="color: var(--text-secondary); font-size: 0.75rem;">${(totalDischarged / sim.dates.length).toFixed(1)} kWh/day avg</div>
                 </div>
                 <div style="flex: 1; min-width: 150px;">
-                    <div style="color: var(--text-secondary); font-size: 0.8rem;">Avg Battery Level</div>
-                    <div style="font-size: 1.2rem; font-weight: 600; color: #a855f7;">${avgSOC.toFixed(1)} kWh</div>
-                    <div style="color: var(--text-secondary); font-size: 0.75rem;">${(avgSOC / sim.usableCapacity * 100).toFixed(0)}% of ${sim.usableCapacity.toFixed(0)} kWh</div>
+                    <div style="color: var(--text-secondary); font-size: 0.8rem;">Avg Battery Level (SOC)</div>
+                    <div style="font-size: 1rem; font-weight: 600; color: #a855f7;">
+                        <span style="color: ${colors.sunlight};">☀️ ${avgSummerSOC.toFixed(0)} kWh</span>
+                        <span style="margin: 0 0.3rem; color: var(--text-secondary);">/</span>
+                        <span style="color: ${colors.night};">❄️ ${avgWinterSOC.toFixed(0)} kWh</span>
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.75rem;">
+                        Summer ${(avgSummerSOC / sim.usableCapacity * 100).toFixed(0)}% / Winter ${(avgWinterSOC / sim.usableCapacity * 100).toFixed(0)}%
+                    </div>
                 </div>
             `;
         }
