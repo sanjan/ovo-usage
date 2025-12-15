@@ -278,6 +278,8 @@ def calculate_daylight_hours(consumption, exports, location: Location, start_dat
 
 def get_summary_stats(consumption, exports):
     """Calculate summary statistics."""
+    import numpy as np
+    
     # Check if free window column exists (for backward compatibility)
     has_free_window = 'is_free_window' in consumption.columns
     
@@ -301,6 +303,25 @@ def get_summary_stats(consumption, exports):
     
     num_days = len(consumption['date'].unique())
     
+    # Peak demand analysis (5-min kWh × 12 = kW)
+    # This gives us instantaneous power draw
+    consumption_copy = consumption.copy()
+    consumption_copy['power_kw'] = consumption_copy['ReadConsumption'] * 12
+    
+    peak_power_kw = consumption_copy['power_kw'].max()
+    peak_power_row = consumption_copy.loc[consumption_copy['power_kw'].idxmax()]
+    peak_power_datetime = peak_power_row['datetime']
+    
+    # Percentiles for power draw
+    p50_power = consumption_copy['power_kw'].quantile(0.50)
+    p90_power = consumption_copy['power_kw'].quantile(0.90)
+    p95_power = consumption_copy['power_kw'].quantile(0.95)
+    p99_power = consumption_copy['power_kw'].quantile(0.99)
+    avg_power = consumption_copy['power_kw'].mean()
+    
+    # Peak by time of day (hourly max)
+    hourly_peak = consumption_copy.groupby('hour')['power_kw'].max()
+    
     return {
         'sunlight_consumption': round(sunlight_consumption, 2),
         'night_consumption': round(night_consumption, 2),
@@ -314,7 +335,16 @@ def get_summary_stats(consumption, exports):
         'avg_daily_export': round(total_exports / num_days, 2),
         'sunlight_pct': round(100 * sunlight_consumption / total_consumption, 1) if total_consumption > 0 else 0,
         'night_pct': round(100 * night_consumption / total_consumption, 1) if total_consumption > 0 else 0,
-        'free_window_pct': round(100 * free_window_consumption / total_consumption, 1) if total_consumption > 0 else 0
+        'free_window_pct': round(100 * free_window_consumption / total_consumption, 1) if total_consumption > 0 else 0,
+        # Peak demand stats
+        'peak_power_kw': round(peak_power_kw, 2),
+        'peak_power_datetime': str(peak_power_datetime),
+        'avg_power_kw': round(avg_power, 2),
+        'p50_power_kw': round(p50_power, 2),
+        'p90_power_kw': round(p90_power, 2),
+        'p95_power_kw': round(p95_power, 2),
+        'p99_power_kw': round(p99_power, 2),
+        'hourly_peak_kw': {str(h): round(v, 2) for h, v in hourly_peak.items()}
     }
 
 

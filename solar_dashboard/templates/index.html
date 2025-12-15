@@ -1157,6 +1157,23 @@
                 </div>
             </div>
 
+            <!-- Peak Demand Section -->
+            <div class="battery-section">
+                <div class="section-header">
+                    <h2>⚡ Peak Demand Analysis</h2>
+                    <p>Your maximum power draw - helps size your battery inverter</p>
+                </div>
+
+                <div class="metrics-grid" id="peak-demand-metrics"></div>
+                
+                <div class="chart-card full-width">
+                    <div class="chart-header">
+                        <div class="chart-title">📊 Peak Power by Hour of Day</div>
+                    </div>
+                    <div id="chart-peak-hourly" class="chart-container"></div>
+                </div>
+            </div>
+
             <!-- Battery Recommendation Section -->
             <div class="battery-section">
                 <div class="section-header">
@@ -1540,6 +1557,8 @@
                 renderDaylightChart(data.daylight);
                 renderPieChart(data.stats);
                 renderDailyChart(data.daily);
+                renderPeakDemandMetrics(data.stats);
+                renderPeakHourlyChart(data.stats);
                 renderBatteryMetrics(data.battery);
                 renderBatteryOptions(data.battery);
                 renderBatterySavingsChart(data.battery);
@@ -1605,6 +1624,102 @@
             // Update sunlight label based on free window
             const sunlightLabel = document.querySelector('.stat-card.sunlight .stat-label');
             sunlightLabel.textContent = freeWindowEnabled ? '☀️ Paid Daytime Grid Import' : '☀️ Daytime Grid Import';
+        }
+
+        function renderPeakDemandMetrics(stats) {
+            // Format the peak datetime nicely
+            const peakDate = new Date(stats.peak_power_datetime);
+            const peakFormatted = peakDate.toLocaleString('en-AU', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+            
+            // Inverter recommendation based on peak demand
+            let inverterRec = '5 kW';
+            if (stats.p99_power_kw > 8) inverterRec = '10 kW';
+            else if (stats.p99_power_kw > 5) inverterRec = '8 kW';
+            
+            document.getElementById('peak-demand-metrics').innerHTML = `
+                <div class="metric-item">
+                    <div class="metric-label">Peak Power Draw</div>
+                    <div class="metric-value highlight-night">${stats.peak_power_kw} kW</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Peak Occurred</div>
+                    <div class="metric-value" style="font-size: 1.1rem;">${peakFormatted}</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">99th Percentile</div>
+                    <div class="metric-value highlight-export">${stats.p99_power_kw} kW</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">95th Percentile</div>
+                    <div class="metric-value highlight-export">${stats.p95_power_kw} kW</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Average Power</div>
+                    <div class="metric-value highlight-sun">${stats.avg_power_kw} kW</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-label">Suggested Inverter</div>
+                    <div class="metric-value" style="color: var(--accent-green);">≥ ${inverterRec}</div>
+                </div>
+            `;
+        }
+
+        function renderPeakHourlyChart(stats) {
+            const hourlyPeak = stats.hourly_peak_kw || {};
+            const hours = Object.keys(hourlyPeak).map(h => {
+                const hour = parseInt(h);
+                if (hour === 0) return '12am';
+                if (hour === 12) return '12pm';
+                return hour > 12 ? `${hour-12}pm` : `${hour}am`;
+            });
+            const values = Object.values(hourlyPeak);
+            
+            // Color bars by intensity
+            const maxPeak = Math.max(...values);
+            const barColors = values.map(v => {
+                const intensity = v / maxPeak;
+                if (intensity > 0.8) return '#ef4444';  // Red for high
+                if (intensity > 0.5) return '#f97316';  // Orange for medium
+                return '#22c55e';  // Green for low
+            });
+            
+            const traces = [{
+                x: hours,
+                y: values,
+                type: 'bar',
+                marker: { color: barColors },
+                hovertemplate: '<b>%{x}</b><br>Peak: %{y:.1f} kW<extra></extra>'
+            }];
+            
+            const layout = {
+                ...plotlyLayout,
+                xaxis: { 
+                    ...plotlyLayout.xaxis, 
+                    title: 'Hour of Day',
+                    type: 'category'
+                },
+                yaxis: { ...plotlyLayout.yaxis, title: 'Peak Power (kW)' },
+                showlegend: false,
+                annotations: [{
+                    x: hours[values.indexOf(Math.max(...values))],
+                    y: Math.max(...values),
+                    text: `Peak: ${Math.max(...values).toFixed(1)} kW`,
+                    showarrow: true,
+                    arrowhead: 2,
+                    ax: 0,
+                    ay: -30,
+                    font: { color: '#ef4444', size: 12 }
+                }]
+            };
+            
+            Plotly.newPlot('chart-peak-hourly', traces, layout, plotlyConfig);
         }
 
         function renderTrendsChart(data, mode = 'rolling') {
