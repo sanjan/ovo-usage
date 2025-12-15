@@ -322,6 +322,40 @@ def get_summary_stats(consumption, exports):
     # Peak by time of day (hourly max)
     hourly_peak = consumption_copy.groupby('hour')['power_kw'].max()
     
+    # Power spike distribution (for inverter sizing)
+    total_readings = len(consumption_copy)
+    power_values = consumption_copy['ReadConsumption']  # 5-min kWh values
+    
+    spike_distribution = {
+        'total_readings': total_readings,
+        'ranges': [
+            {
+                'label': '9.6-12 kW',
+                'kwh_range': '0.8-1.0 kWh',
+                'count': int(((power_values >= 0.8) & (power_values < 1.0)).sum()),
+            },
+            {
+                'label': '12-14.4 kW',
+                'kwh_range': '1.0-1.2 kWh',
+                'count': int(((power_values >= 1.0) & (power_values < 1.2)).sum()),
+            },
+            {
+                'label': '14.4-16.8 kW',
+                'kwh_range': '1.2-1.4 kWh',
+                'count': int(((power_values >= 1.2) & (power_values < 1.4)).sum()),
+            },
+            {
+                'label': '16.8+ kW',
+                'kwh_range': '1.4+ kWh',
+                'count': int((power_values >= 1.4).sum()),
+            },
+        ]
+    }
+    
+    # Add percentages
+    for r in spike_distribution['ranges']:
+        r['pct'] = round(100 * r['count'] / total_readings, 3) if total_readings > 0 else 0
+    
     return {
         'sunlight_consumption': round(sunlight_consumption, 2),
         'night_consumption': round(night_consumption, 2),
@@ -344,7 +378,8 @@ def get_summary_stats(consumption, exports):
         'p90_power_kw': round(p90_power, 2),
         'p95_power_kw': round(p95_power, 2),
         'p99_power_kw': round(p99_power, 2),
-        'hourly_peak_kw': {str(h): round(v, 2) for h, v in hourly_peak.items()}
+        'hourly_peak_kw': {str(h): round(v, 2) for h, v in hourly_peak.items()},
+        'spike_distribution': spike_distribution
     }
 
 

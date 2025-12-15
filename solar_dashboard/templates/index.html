@@ -1640,8 +1640,30 @@
             
             // Inverter recommendation based on peak demand
             let inverterRec = '5 kW';
-            if (stats.p99_power_kw > 8) inverterRec = '10 kW';
-            else if (stats.p99_power_kw > 5) inverterRec = '8 kW';
+            let inverterCoverage = '95%';
+            if (stats.p99_power_kw > 8) {
+                inverterRec = '10 kW';
+                inverterCoverage = '99.9%+';
+            } else if (stats.p99_power_kw > 5) {
+                inverterRec = '8 kW';
+                inverterCoverage = '99.5%+';
+            }
+            
+            // Build spike distribution table
+            const spikes = stats.spike_distribution || { ranges: [], total_readings: 0 };
+            const totalReadings = spikes.total_readings || 1;
+            const spikeRows = spikes.ranges.map(r => `
+                <tr>
+                    <td>${r.label}</td>
+                    <td style="text-align: right; font-weight: 600;">${r.count.toLocaleString()}</td>
+                    <td style="text-align: right; color: var(--text-muted);">${r.pct < 0.01 ? '<0.01' : r.pct.toFixed(2)}%</td>
+                </tr>
+            `).join('');
+            
+            // Calculate under 9.6kW percentage
+            const highSpikeCount = spikes.ranges.reduce((sum, r) => sum + r.count, 0);
+            const normalCount = totalReadings - highSpikeCount;
+            const normalPct = ((normalCount / totalReadings) * 100).toFixed(1);
             
             document.getElementById('peak-demand-metrics').innerHTML = `
                 <div class="metric-item">
@@ -1669,6 +1691,33 @@
                     <div class="metric-value" style="color: var(--accent-green);">≥ ${inverterRec}</div>
                 </div>
             `;
+            
+            // Add spike distribution table after metrics
+            const spikeTableHtml = `
+                <div class="spike-distribution" style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem; color: var(--text-secondary);">⚡ Power Spike Distribution</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        <strong>${normalPct}%</strong> of the time you're under 9.6 kW
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <th style="text-align: left; padding: 0.5rem 0;">Power Range</th>
+                                <th style="text-align: right; padding: 0.5rem 0;">Count</th>
+                                <th style="text-align: right; padding: 0.5rem 0;">% of Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${spikeRows}
+                        </tbody>
+                    </table>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1rem;">
+                        * Based on ${totalReadings.toLocaleString()} readings (5-min intervals). 
+                        An <strong>${inverterRec} inverter</strong> covers ${inverterCoverage} of your loads.
+                    </p>
+                </div>
+            `;
+            document.getElementById('peak-demand-metrics').insertAdjacentHTML('afterend', spikeTableHtml);
         }
 
         function renderPeakHourlyChart(stats) {
