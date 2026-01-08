@@ -127,12 +127,35 @@ def load_and_process_data(filepath: str, location: Location):
     df['datetime'] = pd.to_datetime(df['ReadDate'] + ' ' + df['ReadTime'])
     df['date'] = pd.to_datetime(df['ReadDate']).dt.date
     
+    # Detect register format - OVO uses two formats:
+    # Format 1 (numeric): Register = "001" (consumption), "002" (export)  
+    # Format 2 (alpha): Register = "E1/E2/E4" (consumption), "B1/B4" (export with SolarFlag=true)
+    register_values = df['Register'].astype(str).str.strip('"').unique()
+    print(f"Detected register values: {register_values}")
+    
+    # Check if using alpha format (E1, B1, etc.)
+    has_alpha_registers = any(r.startswith(('E', 'B')) for r in register_values)
+    
+    if has_alpha_registers:
+        # Alpha format: E1/E2/E4 = consumption, B1/B4 with SolarFlag=true = export
+        print("Using alpha register format (E1, B1, etc.)")
+        df['Register'] = df['Register'].astype(str).str.strip('"')
+        consumption_mask = df['Register'].str.startswith('E')
+        export_mask = df['Register'].str.startswith('B') & (df['SolarFlag'] == True)
+    else:
+        # Numeric format: 001 = consumption, 002 = export
+        print("Using numeric register format (001, 002)")
+        # Convert Register to numeric, handling quoted strings like "001"
+        df['Register'] = pd.to_numeric(df['Register'].astype(str).str.strip('"'), errors='coerce')
+        consumption_mask = df['Register'] == 1
+        export_mask = (df['Register'] == 2) & (df['SolarFlag'] == True)
+    
     # Find first solar export date
-    solar_exports = df[(df['Register'] == 2) & (df['SolarFlag'] == True)]
+    solar_exports = df[export_mask]
     non_zero_exports = solar_exports[solar_exports['ReadConsumption'] > 0]
     
     if len(non_zero_exports) == 0:
-        raise ValueError("No solar exports found in data! Make sure the file contains Register=2 entries with SolarFlag=True.")
+        raise ValueError("No solar exports found in data! Make sure the file contains solar export entries (Register=002 or B1/B4 with SolarFlag=True).")
     
     solar_start = non_zero_exports['date'].min()
     data_end = df['date'].max()
@@ -141,9 +164,17 @@ def load_and_process_data(filepath: str, location: Location):
     # Filter data from solar start date onwards
     df_filtered = df[df['date'] >= solar_start].copy()
     
+    # Recalculate masks for filtered data
+    if has_alpha_registers:
+        consumption_mask_filtered = df_filtered['Register'].str.startswith('E')
+        export_mask_filtered = df_filtered['Register'].str.startswith('B') & (df_filtered['SolarFlag'] == True)
+    else:
+        consumption_mask_filtered = df_filtered['Register'] == 1
+        export_mask_filtered = (df_filtered['Register'] == 2) & (df_filtered['SolarFlag'] == True)
+    
     # Separate consumption and export
-    consumption = df_filtered[df_filtered['Register'] == 1].copy()
-    exports = df_filtered[(df_filtered['Register'] == 2) & (df_filtered['SolarFlag'] == True)].copy()
+    consumption = df_filtered[consumption_mask_filtered].copy()
+    exports = df_filtered[export_mask_filtered].copy()
     
     # Determine sunlight hours based on actual solar generation (more accurate than astronomical)
     # A timestamp is considered "sunlight" if there was any solar export at that time
